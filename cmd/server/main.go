@@ -56,9 +56,9 @@ func updateHandler(res http.ResponseWriter, req *http.Request, storage *MemStora
 	parts := strings.Split(req.URL.Path, `/`)
 
 	if len(parts) != 5 {
-		msg := fmt.Sprintf("Bad request: %s", req.URL.Path)
+		msg := fmt.Sprintf("Not found: %s", req.URL.Path)
 		log.Println(msg)
-		res.WriteHeader(http.StatusBadRequest)
+		res.WriteHeader(http.StatusNotFound)
 		return
 	}
 
