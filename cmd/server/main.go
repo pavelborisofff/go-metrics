@@ -9,26 +9,26 @@ import (
 	"strings"
 )
 
-type gauge float64
-type counter int64
+type Gauge float64
+type Counter uint64
 
 type MemStorage struct {
-	CounterStorage map[string]counter `json:"counter"`
-	GaugeStorage   map[string]gauge   `json:"gauge"`
+	CounterStorage map[string]Counter `json:"counter"`
+	GaugeStorage   map[string]Gauge   `json:"gauge"`
 }
 
 func NewMemStorage() *MemStorage {
 	return &MemStorage{
-		CounterStorage: make(map[string]counter),
-		GaugeStorage:   make(map[string]gauge),
+		CounterStorage: make(map[string]Counter),
+		GaugeStorage:   make(map[string]Gauge),
 	}
 }
 
-func (s *MemStorage) UpdateGauge(name string, value gauge) {
+func (s *MemStorage) UpdateGauge(name string, value Gauge) {
 	s.GaugeStorage[name] = value
 }
 
-func (s *MemStorage) IncrementCounter(name string, value counter) {
+func (s *MemStorage) IncrementCounter(name string, value Counter) {
 	s.CounterStorage[name] += value
 }
 
@@ -67,21 +67,21 @@ func updateHandler(res http.ResponseWriter, req *http.Request, storage *MemStora
 	metricValue := parts[4]
 
 	switch metricType {
-	case `counter`:
-		v, err := strconv.ParseInt(metricValue, 10, 64)
+	case `Counter`:
+		v, err := strconv.ParseUint(metricValue, 10, 64)
 
 		if err != nil {
-			msg := fmt.Sprintf("Bad counter's value: %s", metricValue)
+			msg := fmt.Sprintf("Bad Counter's value: %s", metricValue)
 			log.Println(msg)
 			http.Error(res, msg, http.StatusBadRequest)
 			return
 		}
 
-		storage.IncrementCounter(metricName, counter(v))
-		msg := fmt.Sprintf("Counter %s incremented by %d", metricName, v)
+		storage.IncrementCounter(metricName, Counter(v))
+		msg := fmt.Sprintf("Counter %s shanged to %d", metricName, v)
 		log.Println(msg)
 
-	case `gauge`:
+	case `Gauge`:
 		v, err := strconv.ParseFloat(metricValue, 64)
 
 		if err != nil {
@@ -91,7 +91,7 @@ func updateHandler(res http.ResponseWriter, req *http.Request, storage *MemStora
 			return
 		}
 
-		storage.UpdateGauge(metricName, gauge(v))
+		storage.UpdateGauge(metricName, Gauge(v))
 		msg := fmt.Sprintf("Gauge %s updated to %f", metricName, v)
 		log.Println(msg)
 

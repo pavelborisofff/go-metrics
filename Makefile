@@ -8,6 +8,10 @@ go-init:
 go-run-server:
 	cd ./cmd/server && go run .
 
+.PHONY: go-run-agent
+go-run-agent:
+	cd ./cmd/agent && go run .
+
 .PHONY: git-checkout
 git-checkout:
 	git checkout -b $(BRANCH)
