@@ -16,18 +16,19 @@ func TestMainHandler(t *testing.T) {
 
 	tests := []testType{
 		{
-			name:         "Receive 400 with request to root",
-			expectedCode: http.StatusBadRequest,
+			name:         "Receive 200 with request to root",
+			expectedCode: http.StatusOK,
 			expectedBody: "",
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			storage := NewMemStorage()
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
 			w := httptest.NewRecorder()
 
-			mainHandler(w, r)
+			mainHandler(w, r, storage)
 
 			assert.Equal(t, test.expectedCode, w.Code, "Status code mismatch")
 
@@ -115,7 +116,7 @@ func TestMetricsHandler(t *testing.T) {
 		{
 			name:         "Receive 405 if method is not GET",
 			method:       http.MethodPost,
-			requestURL:   "/metrics/",
+			requestURL:   "/metrics",
 			expectedCode: http.StatusMethodNotAllowed,
 			expectedBody: "",
 		},

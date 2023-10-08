@@ -3,14 +3,68 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/go-chi/chi/v5"
+	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 type Gauge float64
 type Counter uint64
+
+const htmlBody = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Metrics</title>
+</head>
+<body>
+	<h1>Metrics</h1>
+	<h2>Counters</h2>
+	<table>
+		<tr>
+			<th>Name</th>
+			<th>Value</th>
+		</tr>
+		{{if .CounterStorage}}
+		{{range $key, $value := .CounterStorage}}
+		<tr>
+			<td>{{$key}}</td>
+			<td>{{$value}}</td>
+		</tr>
+		{{end}}
+		{{else}}	
+		<tr>
+			<td colspan="2">No counters</td>
+		</tr>
+		{{end}}
+	</table>
+	<h2>Gauges</h2>
+	<table>
+		<tr>
+			<th>Name</th>
+			<th>Value</th>
+		</tr>
+		{{if .GaugeStorage}}
+
+		{{range $key, $value := .GaugeStorage}}
+		<tr>
+			<td>{{$key}}</td>
+			<td>{{$value}}</td>
+		</tr>
+		{{end}}
+		{{else}}
+		<tr>
+			<td colspan="2">No gauges</td>
+		</tr>
+		{{end}}
+	</table>
+</body>
+</html>
+`
 
 type MemStorage struct {
 	CounterStorage map[string]Counter `json:"counter"`
@@ -32,39 +86,29 @@ func (s *MemStorage) IncrementCounter(name string, value Counter) {
 	s.CounterStorage[name] += value
 }
 
-func middleware(next http.HandlerFunc) http.HandlerFunc {
-	return func(res http.ResponseWriter, req *http.Request) {
+func middleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		msg := fmt.Sprintf("From: %s, Path: %s, Method: %s", req.RemoteAddr, req.URL.Path, req.Method)
 		log.Println(msg)
 		next.ServeHTTP(res, req)
-	}
+	})
 }
 
-func mainHandler(res http.ResponseWriter, _ *http.Request) {
-	log.Println(`Bad request`)
-	res.WriteHeader(http.StatusBadRequest)
+func mainHandler(res http.ResponseWriter, req *http.Request, storage *MemStorage) {
+	tmpl := template.Must(template.New("metrics").Parse(htmlBody))
+	err := tmpl.Execute(res, storage)
+
+	if err != nil {
+		log.Println(err)
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+	}
+
 }
 
 func updateHandler(res http.ResponseWriter, req *http.Request, storage *MemStorage) {
-	if req.Method != http.MethodPost {
-		msg := fmt.Sprintf("Method not allowed: %s", req.Method)
-		log.Println(msg)
-		http.Error(res, msg, http.StatusMethodNotAllowed)
-	}
-
-	// server-address/update/metrics-type/metrics-name/metrics-value
-	parts := strings.Split(req.URL.Path, `/`)
-
-	if len(parts) != 5 {
-		msg := fmt.Sprintf("Not found: %s", req.URL.Path)
-		log.Println(msg)
-		res.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	metricType := parts[2]
-	metricName := parts[3]
-	metricValue := parts[4]
+	metricType := chi.URLParam(req, "metric-type")
+	metricName := chi.URLParam(req, "metric-name")
+	metricValue := chi.URLParam(req, "metric-value")
 
 	switch metricType {
 	case `counter`:
@@ -96,7 +140,7 @@ func updateHandler(res http.ResponseWriter, req *http.Request, storage *MemStora
 		log.Println(msg)
 
 	default:
-		msg := fmt.Sprintf("Bad metric's name: %s", metricType)
+		msg := fmt.Sprintf("Bad metric's type: %s", metricType)
 		log.Println(msg)
 		http.Error(res, msg, http.StatusBadRequest)
 	}
@@ -105,12 +149,6 @@ func updateHandler(res http.ResponseWriter, req *http.Request, storage *MemStora
 }
 
 func metricsHandler(res http.ResponseWriter, req *http.Request, storage *MemStorage) {
-	if req.Method != http.MethodGet {
-		msg := fmt.Sprintf("Method not allowed: %s", req.Method)
-		log.Println(msg)
-		http.Error(res, `Method not allowed`, http.StatusMethodNotAllowed)
-	}
-
 	data, err := json.Marshal(storage)
 	if err != nil {
 		msg := fmt.Sprintf("Error: %s", err)
@@ -128,20 +166,46 @@ func metricsHandler(res http.ResponseWriter, req *http.Request, storage *MemStor
 	log.Println(write)
 }
 
+func valueHandler(res http.ResponseWriter, req *http.Request, storage *MemStorage) {
+	metricType := chi.URLParam(req, "metric-type")
+	metricName := chi.URLParam(req, "metric-name")
+
+	switch metricType {
+	case `counter`:
+		if v, ok := storage.CounterStorage[metricName]; ok {
+			io.WriteString(res, fmt.Sprintf("%v", v))
+		} else {
+			http.Error(res, `Not found`, http.StatusNotFound)
+		}
+	case `gauge`:
+		if v, ok := storage.GaugeStorage[metricName]; ok {
+			io.WriteString(res, fmt.Sprintf("%v", v))
+		} else {
+			http.Error(res, `Not found`, http.StatusNotFound)
+		}
+	default:
+		http.Error(res, `Bad metric's type`, http.StatusBadRequest)
+	}
+}
+
 func main() {
 	storage := NewMemStorage()
 
-	mux := http.NewServeMux()
-	mux.HandleFunc(`/`, middleware(mainHandler))
-	mux.HandleFunc(`/update/`, middleware(func(res http.ResponseWriter, req *http.Request) {
-		updateHandler(res, req, storage)
-	}))
-	mux.HandleFunc(`/metrics`, middleware(func(res http.ResponseWriter, req *http.Request) {
-		metricsHandler(res, req, storage)
-	}))
+	r := chi.NewRouter()
+	r.Use(middleware)
 
-	err := http.ListenAndServe(`:8080`, mux)
-	if err != nil {
-		panic(err)
-	}
+	r.Get("/", func(res http.ResponseWriter, req *http.Request) {
+		mainHandler(res, req, storage)
+	})
+	r.Post("/update/{metric-type}/{metric-name}/{metric-value}", func(res http.ResponseWriter, req *http.Request) {
+		updateHandler(res, req, storage)
+	})
+	r.Get("/value/{metric-type}/{metric-name}", func(res http.ResponseWriter, req *http.Request) {
+		valueHandler(res, req, storage)
+	})
+	r.Get("/metrics", func(res http.ResponseWriter, req *http.Request) {
+		metricsHandler(res, req, storage)
+	})
+
+	log.Fatal(http.ListenAndServe(":8080", r))
 }
