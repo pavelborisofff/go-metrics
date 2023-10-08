@@ -67,7 +67,7 @@ func updateHandler(res http.ResponseWriter, req *http.Request, storage *MemStora
 	metricValue := parts[4]
 
 	switch metricType {
-	case `Counter`:
+	case `counter`:
 		v, err := strconv.ParseUint(metricValue, 10, 64)
 
 		if err != nil {
@@ -81,7 +81,7 @@ func updateHandler(res http.ResponseWriter, req *http.Request, storage *MemStora
 		msg := fmt.Sprintf("Counter %s shanged to %d", metricName, v)
 		log.Println(msg)
 
-	case `Gauge`:
+	case `gauge`:
 		v, err := strconv.ParseFloat(metricValue, 64)
 
 		if err != nil {

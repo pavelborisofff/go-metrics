@@ -103,11 +103,11 @@ func (s *MemStorage) IncrementCounter(name string, value Counter) {
 
 func (s *MemStorage) SendMetrics() error {
 	for name, value := range s.CounterStorage {
-		s.SendMetric(`Counter`, name, value)
+		s.SendMetric(`counter`, name, value)
 	}
 
 	for name, value := range s.GaugeStorage {
-		s.SendMetric(`Gauge`, name, value)
+		s.SendMetric(`gauge`, name, value)
 	}
 
 	return nil
@@ -130,8 +130,8 @@ func (s *MemStorage) SendMetric(metricType string, metricName string, metricValu
 		return
 	}
 
-	//msg := fmt.Sprintf("Metric sent successfully: %s", url)
-	//log.Default().Println(msg)
+	msg := fmt.Sprintf("Metric sent successfully: %s", url)
+	log.Default().Println(msg)
 }
 
 func main() {
