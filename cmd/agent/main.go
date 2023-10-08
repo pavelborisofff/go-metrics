@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"math/rand"
 	"net/http"
@@ -134,12 +133,7 @@ func (s *MemStorage) SendMetric(metricType string, metricName string, metricValu
 	msg := fmt.Sprintf("Metric sent successfully: %s", url)
 	log.Default().Println(msg)
 
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-
-		}
-	}(res.Body)
+	defer res.Body.Close()
 }
 
 func main() {
