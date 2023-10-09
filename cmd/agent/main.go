@@ -6,8 +6,10 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"reflect"
 	"runtime"
+	"strconv"
 	"time"
 )
 
@@ -96,6 +98,7 @@ func (s *MemStorage) UpdateMetrics() {
 			s.UpdateGauge(field.Name, Gauge(value.Float()))
 		default:
 			log.Default().Printf("Unknown type: %s", value.Kind())
+			continue
 		}
 	}
 
@@ -139,11 +142,12 @@ func (s *MemStorage) SendMetric(metricType string, metricName string, metricValu
 	msg := fmt.Sprintf("Metric sent successfully: %s", url)
 	log.Default().Println(msg)
 
-	defer res.Body.Close()
+	res.Body.Close()
 }
 
 func ParseFlags() {
 	var (
+		err                error
 		serverAddrFlag     string
 		pollIntervalFlag   int
 		reportIntervalFlag int
@@ -154,9 +158,43 @@ func ParseFlags() {
 	flag.IntVar(&reportIntervalFlag, "r", reportIntervalDef, "Report interval")
 	flag.Parse()
 
+	//serverAddrEnv, exists := os.LookupEnv("ADDRESS")
+	serverAddrEnv, exists := os.LookupEnv("ADDRESS")
+	if exists {
+		serverAddrFlag = serverAddrEnv
+	}
 	serverAddr = fmt.Sprintf(`http://%s/update`, serverAddrFlag)
+
+	pollIntervalEnv, exists := os.LookupEnv("POLL_INTERVAL")
+	if exists {
+		pollIntervalFlag, err = strconv.Atoi(pollIntervalEnv)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 	pollInterval = pollIntervalFlag
+
+	if pollInterval == 0 {
+		msg := fmt.Sprintf("Poll interval must be greater than 0")
+		log.Fatal(msg)
+	}
+
+	reportIntervalEnv, exists := os.LookupEnv("REPORT_INTERVAL")
+	if exists {
+		reportIntervalFlag, err = strconv.Atoi(reportIntervalEnv)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 	reportInterval = reportIntervalFlag
+
+	if reportInterval == 0 {
+		msg := fmt.Sprintf("Report interval must be greater than 0")
+		log.Fatal(msg)
+	}
+
+	msg := fmt.Sprintf("\nServer address: %s\nPoll interval: %v\nReport interval: %v", serverAddr, pollInterval, reportInterval)
+	log.Default().Println(msg)
 }
 
 func main() {
