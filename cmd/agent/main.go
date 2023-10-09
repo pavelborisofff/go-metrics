@@ -175,8 +175,7 @@ func ParseFlags() {
 	pollInterval = pollIntervalFlag
 
 	if pollInterval == 0 {
-		msg := fmt.Sprintf("Poll interval must be greater than 0")
-		log.Fatal(msg)
+		log.Fatal("Poll interval must be greater than 0")
 	}
 
 	reportIntervalEnv, exists := os.LookupEnv("REPORT_INTERVAL")
@@ -189,8 +188,7 @@ func ParseFlags() {
 	reportInterval = reportIntervalFlag
 
 	if reportInterval == 0 {
-		msg := fmt.Sprintf("Report interval must be greater than 0")
-		log.Fatal(msg)
+		log.Fatal("Report interval must be greater than 0")
 	}
 
 	msg := fmt.Sprintf("\nServer address: %s\nPoll interval: %v\nReport interval: %v", serverAddr, pollInterval, reportInterval)
