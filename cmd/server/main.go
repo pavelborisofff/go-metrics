@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"html/template"
@@ -65,6 +66,8 @@ const htmlBody = `
 </body>
 </html>
 `
+
+var ServerAddr string
 
 type MemStorage struct {
 	CounterStorage map[string]Counter `json:"counter"`
@@ -188,7 +191,13 @@ func valueHandler(res http.ResponseWriter, req *http.Request, storage *MemStorag
 	}
 }
 
+func ParseFlags() {
+	flag.StringVar(&ServerAddr, "a", ":8080", "Server address")
+	flag.Parse()
+}
+
 func main() {
+	ParseFlags()
 	storage := NewMemStorage()
 
 	r := chi.NewRouter()
@@ -207,5 +216,5 @@ func main() {
 		metricsHandler(res, req, storage)
 	})
 
-	log.Fatal(http.ListenAndServe(":8080", r))
+	log.Fatal(http.ListenAndServe(ServerAddr, r))
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"math/rand"
@@ -11,43 +12,48 @@ import (
 )
 
 const (
-	pollInterval   = 2
-	reportInterval = 10
-	serverAddr     = `http://localhost:8080/update`
+	pollIntervalDef   = 2
+	reportIntervalDef = 10
+	serverAddrDef     = `localhost:8080`
 )
 
 type Gauge float64
 type Counter uint64
 
-var memStatsNames = []string{
-	"Alloc",
-	"BuckHashSys",
-	"Frees",
-	"GCCPUFraction",
-	"GCSys",
-	"HeapAlloc",
-	"HeapIdle",
-	"HeapInuse",
-	"HeapObjects",
-	"HeapReleased",
-	"HeapSys",
-	"LastGC",
-	"Lookups",
-	"MCacheInuse",
-	"MCacheSys",
-	"MSpanInuse",
-	"MSpanSys",
-	"Mallocs",
-	"NextGC",
-	"NumForcedGC",
-	"NumGC",
-	"OtherSys",
-	"PauseTotalNs",
-	"StackInuse",
-	"StackSys",
-	"Sys",
-	"TotalAlloc",
-}
+var (
+	pollInterval   int
+	reportInterval int
+	serverAddr     string
+	memStatsNames  = []string{
+		"Alloc",
+		"BuckHashSys",
+		"Frees",
+		"GCCPUFraction",
+		"GCSys",
+		"HeapAlloc",
+		"HeapIdle",
+		"HeapInuse",
+		"HeapObjects",
+		"HeapReleased",
+		"HeapSys",
+		"LastGC",
+		"Lookups",
+		"MCacheInuse",
+		"MCacheSys",
+		"MSpanInuse",
+		"MSpanSys",
+		"Mallocs",
+		"NextGC",
+		"NumForcedGC",
+		"NumGC",
+		"OtherSys",
+		"PauseTotalNs",
+		"StackInuse",
+		"StackSys",
+		"Sys",
+		"TotalAlloc",
+	}
+)
 
 type MemStorage struct {
 	CounterStorage map[string]Counter `json:"counter"`
@@ -136,13 +142,31 @@ func (s *MemStorage) SendMetric(metricType string, metricName string, metricValu
 	defer res.Body.Close()
 }
 
+func ParseFlags() {
+	var (
+		serverAddrFlag     string
+		pollIntervalFlag   int
+		reportIntervalFlag int
+	)
+
+	flag.StringVar(&serverAddrFlag, "a", serverAddrDef, "Server address")
+	flag.IntVar(&pollIntervalFlag, "p", pollIntervalDef, "Poll interval")
+	flag.IntVar(&reportIntervalFlag, "r", reportIntervalDef, "Report interval")
+	flag.Parse()
+
+	serverAddr = fmt.Sprintf(`http://%s/update`, serverAddrFlag)
+	pollInterval = pollIntervalFlag
+	reportInterval = reportIntervalFlag
+}
+
 func main() {
 	storage := NewMemStorage()
+	ParseFlags()
 
 	go func() {
 		for {
 			storage.UpdateMetrics()
-			time.Sleep(pollInterval * time.Second)
+			time.Sleep(time.Duration(pollInterval) * time.Second)
 		}
 	}()
 
@@ -151,6 +175,6 @@ func main() {
 		if err != nil {
 			return
 		}
-		time.Sleep(reportInterval * time.Second)
+		time.Sleep(time.Duration(reportInterval) * time.Second)
 	}
 }
