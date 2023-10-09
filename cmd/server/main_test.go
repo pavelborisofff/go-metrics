@@ -129,6 +129,8 @@ func TestUpdateHandler(t *testing.T) {
 		res, body := testRequest(t, ts, test.method, test.requestURL)
 		assert.Equal(t, test.expectedCode, res.StatusCode)
 		assert.Equal(t, test.expectedBody, body)
+
+		res.Body.Close()
 	}
 }
 
@@ -190,6 +192,8 @@ func TestMetricsHandler(t *testing.T) {
 		res, body := testRequest(t, ts, test.method, test.requestURL)
 		assert.Equal(t, test.expectedCode, res.StatusCode)
 		assert.Equal(t, test.expectedBody, body)
+
+		res.Body.Close()
 	}
 
 	for _, test := range tests[len(tests)-1:] {
@@ -199,6 +203,8 @@ func TestMetricsHandler(t *testing.T) {
 		res, body := testRequest(t, ts, test.method, test.requestURL)
 		assert.Equal(t, test.expectedCode, res.StatusCode)
 		assert.Equal(t, test.expectedBody, body)
+
+		res.Body.Close()
 	}
 
 }
