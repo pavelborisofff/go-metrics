@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	pollIntervalDef   = time.Duration(1)
-	reportIntervalDef = time.Duration(2)
+	pollIntervalDef   = time.Duration(2)
+	reportIntervalDef = time.Duration(10)
 	serverAddrDef     = "localhost:8080"
 )
 
@@ -143,7 +143,7 @@ func ParseFlags() {
 			log.Fatal(err)
 		}
 	}
-	pollInterval = pollIntervalFlag * time.Microsecond
+	pollInterval = pollIntervalFlag * time.Second
 
 	if pollInterval < 1 {
 		log.Fatal("Poll interval must be greater than 0")
@@ -156,7 +156,7 @@ func ParseFlags() {
 			log.Fatal(err)
 		}
 	}
-	reportInterval = reportIntervalFlag * time.Microsecond
+	reportInterval = reportIntervalFlag * time.Second
 
 	if reportInterval < 1 {
 		log.Fatal("Report interval must be greater than 0")
