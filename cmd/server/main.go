@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -16,60 +17,10 @@ import (
 type Gauge float64
 type Counter uint64
 
-const (
-	serverAddrDef = `localhost:8080`
-	htmlBody      = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-	<meta charset="UTF-8">
-	<title>Metrics</title>
-</head>
-<body>
-	<h1>Metrics</h1>
-	<h2>Counters</h2>
-	<table>
-		<tr>
-			<th>Name</th>
-			<th>Value</th>
-		</tr>
-		{{if .CounterStorage}}
-		{{range $key, $value := .CounterStorage}}
-		<tr>
-			<td>{{$key}}</td>
-			<td>{{$value}}</td>
-		</tr>
-		{{end}}
-		{{else}}	
-		<tr>
-			<td colspan="2">No counters</td>
-		</tr>
-		{{end}}
-	</table>
-	<h2>Gauges</h2>
-	<table>
-		<tr>
-			<th>Name</th>
-			<th>Value</th>
-		</tr>
-		{{if .GaugeStorage}}
+const serverAddrDef = "localhost:8080"
 
-		{{range $key, $value := .GaugeStorage}}
-		<tr>
-			<td>{{$key}}</td>
-			<td>{{$value}}</td>
-		</tr>
-		{{end}}
-		{{else}}
-		<tr>
-			<td colspan="2">No gauges</td>
-		</tr>
-		{{end}}
-	</table>
-</body>
-</html>
-`
-)
+//go:embed templates/metrics.html
+var htmlMetrics string
 
 var ServerAddr string
 
@@ -102,7 +53,7 @@ func middleware(next http.Handler) http.Handler {
 }
 
 func mainHandler(res http.ResponseWriter, req *http.Request, storage *MemStorage) {
-	tmpl := template.Must(template.New("metrics").Parse(htmlBody))
+	tmpl := template.Must(template.New("metrics").Parse(htmlMetrics))
 	err := tmpl.Execute(res, storage)
 
 	if err != nil {
