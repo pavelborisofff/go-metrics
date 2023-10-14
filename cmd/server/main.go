@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/go-chi/chi/v5"
 	"html/template"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type Gauge float64
@@ -118,9 +119,14 @@ func metricsHandler(res http.ResponseWriter, req *http.Request, storage *MemStor
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
 	write, err := res.Write(data)
+
 	if err != nil {
+		msg := fmt.Sprintf("Error: %s", err)
+		http.Error(res, msg, http.StatusInternalServerError)
+		log.Fatal(msg)
 		return
 	}
+
 	log.Println(write)
 }
 
@@ -129,20 +135,20 @@ func valueHandler(res http.ResponseWriter, req *http.Request, storage *MemStorag
 	metricName := chi.URLParam(req, "metric-name")
 
 	switch metricType {
-	case `counter`:
+	case "counter":
 		if v, ok := storage.CounterStorage[metricName]; ok {
 			io.WriteString(res, fmt.Sprintf("%v", v))
 		} else {
-			http.Error(res, `Not found`, http.StatusNotFound)
+			http.Error(res, "Not found", http.StatusNotFound)
 		}
-	case `gauge`:
+	case "gauge":
 		if v, ok := storage.GaugeStorage[metricName]; ok {
 			io.WriteString(res, fmt.Sprintf("%v", v))
 		} else {
-			http.Error(res, `Not found`, http.StatusNotFound)
+			http.Error(res, "Not found", http.StatusNotFound)
 		}
 	default:
-		http.Error(res, `Bad metric's type`, http.StatusBadRequest)
+		http.Error(res, "Bad metric's type", http.StatusBadRequest)
 	}
 }
 
