@@ -8,13 +8,12 @@ import (
 	"net/http"
 	"os"
 	"runtime"
-	"strconv"
 	"time"
 )
 
 const (
-	pollIntervalDef   = 2
-	reportIntervalDef = 10
+	pollIntervalDef   = time.Duration(2)
+	reportIntervalDef = time.Duration(10)
 	serverAddrDef     = "localhost:8080"
 )
 
@@ -22,8 +21,8 @@ type Gauge float64
 type Counter uint64
 
 var (
-	pollInterval   int
-	reportInterval int
+	pollInterval   time.Duration
+	reportInterval time.Duration
 	serverAddr     string
 )
 
@@ -122,13 +121,17 @@ func ParseFlags() {
 	var (
 		err                error
 		serverAddrFlag     string
-		pollIntervalFlag   int
-		reportIntervalFlag int
+		pollIntervalFlag   time.Duration
+		reportIntervalFlag time.Duration
 	)
 
+	msg2 := fmt.Sprintf("\n\nPoll interval: %v\nReport interval: %v", pollIntervalFlag, pollInterval)
+	log.Default().Println(msg2)
+
 	flag.StringVar(&serverAddrFlag, "a", serverAddrDef, "Server address")
-	flag.IntVar(&pollIntervalFlag, "p", pollIntervalDef, "Poll interval")
-	flag.IntVar(&reportIntervalFlag, "r", reportIntervalDef, "Report interval")
+	flag.DurationVar(&pollIntervalFlag, "p", pollIntervalDef*time.Second, "Poll interval")
+	flag.DurationVar(&reportIntervalFlag, "r", reportIntervalDef*time.Second, "Report interval")
+
 	flag.Parse()
 
 	//serverAddrEnv, exists := os.LookupEnv("ADDRESS")
@@ -140,28 +143,28 @@ func ParseFlags() {
 
 	pollIntervalEnv, exists := os.LookupEnv("POLL_INTERVAL")
 	if exists {
-		pollIntervalFlag, err = strconv.Atoi(pollIntervalEnv)
+		pollIntervalFlag, err = time.ParseDuration(pollIntervalEnv + "s")
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
 	pollInterval = pollIntervalFlag
 
-	if pollInterval < 1 {
-		log.Fatal("Poll interval must be greater than 0")
+	if pollInterval < 1*time.Second {
+		log.Fatal("Poll interval must be >= 1s")
 	}
 
 	reportIntervalEnv, exists := os.LookupEnv("REPORT_INTERVAL")
 	if exists {
-		reportIntervalFlag, err = strconv.Atoi(reportIntervalEnv)
+		reportIntervalFlag, err = time.ParseDuration(reportIntervalEnv + "s")
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
 	reportInterval = reportIntervalFlag
 
-	if reportInterval < 1 {
-		log.Fatal("Report interval must be greater than 0")
+	if reportInterval < 1*time.Second {
+		log.Fatal("Report interval must be >= 1s")
 	}
 
 	msg := fmt.Sprintf("\nServer address: %s\nPoll interval: %v\nReport interval: %v", serverAddr, pollInterval, reportInterval)
@@ -172,9 +175,9 @@ func main() {
 	storage := NewMemStorage()
 	ParseFlags()
 
-	pollTicker := time.NewTicker(time.Duration(pollInterval) * time.Second)
+	pollTicker := time.NewTicker(pollInterval)
 	defer pollTicker.Stop()
-	reportTicker := time.NewTicker(time.Duration(reportInterval) * time.Second)
+	reportTicker := time.NewTicker(reportInterval)
 	defer reportTicker.Stop()
 
 	for {
