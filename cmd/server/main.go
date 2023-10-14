@@ -172,7 +172,7 @@ func ParseFlags() {
 
 	serverAddrEnv, exists := os.LookupEnv("ADDRESS")
 	if exists {
-		serverAddrFlag = serverAddrEnv
+		serverAddrFlag = "http://" + serverAddrEnv
 	}
 
 	ServerAddr = serverAddrFlag
