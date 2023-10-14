@@ -7,23 +7,54 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"reflect"
 	"runtime"
+	"strconv"
 	"time"
 )
 
 const (
-	pollIntervalDef   = time.Duration(2)
-	reportIntervalDef = time.Duration(10)
-	serverAddrDef     = "localhost:8080"
+	pollIntervalDef   = 2
+	reportIntervalDef = 10
+	serverAddrDef     = `localhost:8080`
 )
 
 type Gauge float64
 type Counter uint64
 
 var (
-	pollInterval   time.Duration
-	reportInterval time.Duration
+	pollInterval   int
+	reportInterval int
 	serverAddr     string
+	memStatsNames  = []string{
+		"Alloc",
+		"BuckHashSys",
+		"Frees",
+		"GCCPUFraction",
+		"GCSys",
+		"HeapAlloc",
+		"HeapIdle",
+		"HeapInuse",
+		"HeapObjects",
+		"HeapReleased",
+		"HeapSys",
+		"LastGC",
+		"Lookups",
+		"MCacheInuse",
+		"MCacheSys",
+		"MSpanInuse",
+		"MSpanSys",
+		"Mallocs",
+		"NextGC",
+		"NumForcedGC",
+		"NumGC",
+		"OtherSys",
+		"PauseTotalNs",
+		"StackInuse",
+		"StackSys",
+		"Sys",
+		"TotalAlloc",
+	}
 )
 
 type MemStorage struct {
@@ -46,36 +77,33 @@ func (s *MemStorage) UpdateMetrics() {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
-	s.UpdateGauge("Alloc", Gauge(m.Alloc))
-	s.UpdateGauge("BuckHashSys", Gauge(m.BuckHashSys))
-	s.UpdateGauge("Frees", Gauge(m.Frees))
-	s.UpdateGauge("GCCPUFraction", Gauge(m.GCCPUFraction))
-	s.UpdateGauge("GCSys", Gauge(m.GCSys))
-	s.UpdateGauge("HeapAlloc", Gauge(m.HeapAlloc))
-	s.UpdateGauge("HeapIdle", Gauge(m.HeapIdle))
-	s.UpdateGauge("HeapInuse", Gauge(m.HeapInuse))
-	s.UpdateGauge("HeapObjects", Gauge(m.HeapObjects))
-	s.UpdateGauge("HeapReleased", Gauge(m.HeapReleased))
-	s.UpdateGauge("HeapSys", Gauge(m.HeapSys))
-	s.UpdateGauge("LastGC", Gauge(m.LastGC))
-	s.UpdateGauge("Lookups", Gauge(m.Lookups))
-	s.UpdateGauge("MCacheInuse", Gauge(m.MCacheInuse))
-	s.UpdateGauge("MCacheSys", Gauge(m.MCacheSys))
-	s.UpdateGauge("MSpanInuse", Gauge(m.MSpanInuse))
-	s.UpdateGauge("MSpanSys", Gauge(m.MSpanSys))
-	s.UpdateGauge("Mallocs", Gauge(m.Mallocs))
-	s.UpdateGauge("NextGC", Gauge(m.NextGC))
-	s.UpdateGauge("NumForcedGC", Gauge(m.NumForcedGC))
-	s.UpdateGauge("NumGC", Gauge(m.NumGC))
-	s.UpdateGauge("OtherSys", Gauge(m.OtherSys))
-	s.UpdateGauge("PauseTotalNs", Gauge(m.PauseTotalNs))
-	s.UpdateGauge("StackInuse", Gauge(m.StackInuse))
-	s.UpdateGauge("StackSys", Gauge(m.StackSys))
-	s.UpdateGauge("Sys", Gauge(m.Sys))
-	s.UpdateGauge("TotalAlloc", Gauge(m.TotalAlloc))
+	k := reflect.TypeOf(m)
+	v := reflect.ValueOf(m)
 
-	s.IncrementCounter("PollCount", 1)
-	s.IncrementCounter("RandomValue", Counter(rand.Uint64()))
+	for _, name := range memStatsNames {
+		field, ok := k.FieldByName(name)
+
+		if !ok {
+			continue
+		}
+
+		value := v.FieldByName(name)
+
+		switch value.Kind() {
+		case reflect.Uint64:
+			s.UpdateGauge(field.Name, Gauge(value.Uint()))
+		case reflect.Uint32:
+			s.UpdateGauge(field.Name, Gauge(value.Uint()))
+		case reflect.Float64:
+			s.UpdateGauge(field.Name, Gauge(value.Float()))
+		default:
+			log.Default().Printf("Unknown type: %s", value.Kind())
+			continue
+		}
+	}
+
+	s.IncrementCounter(`PollCount`, 1)
+	s.IncrementCounter(`RandomValue`, Counter(rand.Uint64()))
 }
 
 func (s *MemStorage) IncrementCounter(name string, value Counter) {
@@ -84,20 +112,20 @@ func (s *MemStorage) IncrementCounter(name string, value Counter) {
 
 func (s *MemStorage) SendMetrics() error {
 	for name, value := range s.CounterStorage {
-		s.SendMetric("counter", name, value)
+		s.SendMetric(`counter`, name, value)
 	}
 
 	for name, value := range s.GaugeStorage {
-		s.SendMetric("gauge", name, value)
+		s.SendMetric(`gauge`, name, value)
 	}
 
 	return nil
 }
 
 func (s *MemStorage) SendMetric(metricType string, metricName string, metricValue interface{}) {
-	url := fmt.Sprintf("%s/%s/%s/%v", serverAddr, metricType, metricName, metricValue)
+	url := fmt.Sprintf(`%s/%s/%s/%v`, serverAddr, metricType, metricName, metricValue)
 
-	res, err := http.Post(url, "text/plain", nil)
+	res, err := http.Post(url, `text/plain`, nil)
 
 	if err != nil {
 		msg := fmt.Sprintf("Failed to send metric: %s", err)
@@ -121,44 +149,45 @@ func ParseFlags() {
 	var (
 		err                error
 		serverAddrFlag     string
-		pollIntervalFlag   time.Duration
-		reportIntervalFlag time.Duration
+		pollIntervalFlag   int
+		reportIntervalFlag int
 	)
 
 	flag.StringVar(&serverAddrFlag, "a", serverAddrDef, "Server address")
-	flag.DurationVar(&pollIntervalFlag, "p", pollIntervalDef, "Poll interval")
-	flag.DurationVar(&reportIntervalFlag, "r", reportIntervalDef, "Report interval")
+	flag.IntVar(&pollIntervalFlag, "p", pollIntervalDef, "Poll interval")
+	flag.IntVar(&reportIntervalFlag, "r", reportIntervalDef, "Report interval")
 	flag.Parse()
 
+	//serverAddrEnv, exists := os.LookupEnv("ADDRESS")
 	serverAddrEnv, exists := os.LookupEnv("ADDRESS")
 	if exists {
 		serverAddrFlag = serverAddrEnv
 	}
-	serverAddr = fmt.Sprintf("http://%s/update", serverAddrFlag)
+	serverAddr = fmt.Sprintf(`http://%s/update`, serverAddrFlag)
 
 	pollIntervalEnv, exists := os.LookupEnv("POLL_INTERVAL")
 	if exists {
-		pollIntervalFlag, err = time.ParseDuration(pollIntervalEnv)
+		pollIntervalFlag, err = strconv.Atoi(pollIntervalEnv)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
-	pollInterval = pollIntervalFlag * time.Second
+	pollInterval = pollIntervalFlag
 
-	if pollInterval < 1 {
+	if pollInterval == 0 {
 		log.Fatal("Poll interval must be greater than 0")
 	}
 
 	reportIntervalEnv, exists := os.LookupEnv("REPORT_INTERVAL")
 	if exists {
-		reportIntervalFlag, err = time.ParseDuration(reportIntervalEnv)
+		reportIntervalFlag, err = strconv.Atoi(reportIntervalEnv)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
-	reportInterval = reportIntervalFlag * time.Second
+	reportInterval = reportIntervalFlag
 
-	if reportInterval < 1 {
+	if reportInterval == 0 {
 		log.Fatal("Report interval must be greater than 0")
 	}
 
@@ -170,20 +199,18 @@ func main() {
 	storage := NewMemStorage()
 	ParseFlags()
 
-	pollTicker := time.NewTicker(pollInterval)
-	defer pollTicker.Stop()
-	reportTicker := time.NewTicker(reportInterval)
-	defer reportTicker.Stop()
+	go func() {
+		for {
+			storage.UpdateMetrics()
+			time.Sleep(time.Duration(pollInterval) * time.Second)
+		}
+	}()
 
 	for {
-		select {
-		case <-pollTicker.C:
-			storage.UpdateMetrics()
-		case <-reportTicker.C:
-			err := storage.SendMetrics()
-			if err != nil {
-				return
-			}
+		err := storage.SendMetrics()
+		if err != nil {
+			return
 		}
+		time.Sleep(time.Duration(reportInterval) * time.Second)
 	}
 }
