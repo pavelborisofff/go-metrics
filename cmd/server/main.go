@@ -1,95 +1,58 @@
 package main
 
 import (
+	_ "embed"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/go-chi/chi/v5"
 	"html/template"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
+	"sync"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type Gauge float64
 type Counter uint64
 
 const (
-	serverAddrDef = `localhost:8080`
-	htmlBody      = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-	<meta charset="UTF-8">
-	<title>Metrics</title>
-</head>
-<body>
-	<h1>Metrics</h1>
-	<h2>Counters</h2>
-	<table>
-		<tr>
-			<th>Name</th>
-			<th>Value</th>
-		</tr>
-		{{if .CounterStorage}}
-		{{range $key, $value := .CounterStorage}}
-		<tr>
-			<td>{{$key}}</td>
-			<td>{{$value}}</td>
-		</tr>
-		{{end}}
-		{{else}}	
-		<tr>
-			<td colspan="2">No counters</td>
-		</tr>
-		{{end}}
-	</table>
-	<h2>Gauges</h2>
-	<table>
-		<tr>
-			<th>Name</th>
-			<th>Value</th>
-		</tr>
-		{{if .GaugeStorage}}
-
-		{{range $key, $value := .GaugeStorage}}
-		<tr>
-			<td>{{$key}}</td>
-			<td>{{$value}}</td>
-		</tr>
-		{{end}}
-		{{else}}
-		<tr>
-			<td colspan="2">No gauges</td>
-		</tr>
-		{{end}}
-	</table>
-</body>
-</html>
-`
+	serverAddrDef = "localhost:8080"
 )
 
 var ServerAddr string
 
+//go:embed templates/metrics.html
+var htmlMetrics string
+
 type MemStorage struct {
 	CounterStorage map[string]Counter `json:"counter"`
 	GaugeStorage   map[string]Gauge   `json:"gauge"`
+	mutex          *sync.Mutex
 }
 
 func NewMemStorage() *MemStorage {
 	return &MemStorage{
 		CounterStorage: make(map[string]Counter),
 		GaugeStorage:   make(map[string]Gauge),
+		mutex:          &sync.Mutex{},
 	}
 }
 
 func (s *MemStorage) UpdateGauge(name string, value Gauge) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	s.GaugeStorage[name] = value
 }
 
 func (s *MemStorage) IncrementCounter(name string, value Counter) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	s.CounterStorage[name] += value
 }
 
@@ -102,7 +65,7 @@ func middleware(next http.Handler) http.Handler {
 }
 
 func mainHandler(res http.ResponseWriter, req *http.Request, storage *MemStorage) {
-	tmpl := template.Must(template.New("metrics").Parse(htmlBody))
+	tmpl := template.Must(template.New("metrics").Parse(htmlMetrics))
 	err := tmpl.Execute(res, storage)
 
 	if err != nil {
@@ -167,9 +130,14 @@ func metricsHandler(res http.ResponseWriter, req *http.Request, storage *MemStor
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
 	write, err := res.Write(data)
+
 	if err != nil {
+		msg := fmt.Sprintf("Error: %s", err)
+		http.Error(res, msg, http.StatusInternalServerError)
+		log.Fatal(msg)
 		return
 	}
+
 	log.Println(write)
 }
 
@@ -178,20 +146,20 @@ func valueHandler(res http.ResponseWriter, req *http.Request, storage *MemStorag
 	metricName := chi.URLParam(req, "metric-name")
 
 	switch metricType {
-	case `counter`:
+	case "counter":
 		if v, ok := storage.CounterStorage[metricName]; ok {
 			io.WriteString(res, fmt.Sprintf("%v", v))
 		} else {
-			http.Error(res, `Not found`, http.StatusNotFound)
+			http.Error(res, "Not found", http.StatusNotFound)
 		}
-	case `gauge`:
+	case "gauge":
 		if v, ok := storage.GaugeStorage[metricName]; ok {
 			io.WriteString(res, fmt.Sprintf("%v", v))
 		} else {
-			http.Error(res, `Not found`, http.StatusNotFound)
+			http.Error(res, "Not found", http.StatusNotFound)
 		}
 	default:
-		http.Error(res, `Bad metric's type`, http.StatusBadRequest)
+		http.Error(res, "Bad metric's type", http.StatusBadRequest)
 	}
 }
 
