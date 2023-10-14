@@ -174,7 +174,7 @@ func ParseFlags() {
 	}
 	pollInterval = pollIntervalFlag
 
-	if pollInterval == 0 {
+	if pollInterval < 1 {
 		log.Fatal("Poll interval must be greater than 0")
 	}
 
@@ -187,7 +187,7 @@ func ParseFlags() {
 	}
 	reportInterval = reportIntervalFlag
 
-	if reportInterval == 0 {
+	if reportInterval < 1 {
 		log.Fatal("Report interval must be greater than 0")
 	}
 
@@ -199,18 +199,20 @@ func main() {
 	storage := NewMemStorage()
 	ParseFlags()
 
-	go func() {
-		for {
-			storage.UpdateMetrics()
-			time.Sleep(time.Duration(pollInterval) * time.Second)
-		}
-	}()
+	pollTicker := time.NewTicker(time.Duration(pollInterval) * time.Second)
+	defer pollTicker.Stop()
+	reportTicker := time.NewTicker(time.Duration(reportInterval) * time.Second)
+	defer reportTicker.Stop()
 
 	for {
-		err := storage.SendMetrics()
-		if err != nil {
-			return
+		select {
+		case <-pollTicker.C:
+			storage.UpdateMetrics()
+		case <-reportTicker.C:
+			err := storage.SendMetrics()
+			if err != nil {
+				return
+			}
 		}
-		time.Sleep(time.Duration(reportInterval) * time.Second)
 	}
 }

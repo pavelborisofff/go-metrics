@@ -28,3 +28,8 @@ go-run-tests:
 git-checkout:
 	git checkout -b $(BRANCH)
 
+.PHONY: go-run-autotests-4
+go-run-autotests-4:
+	go build -o cmd/server/server cmd/server/main.go
+	go build -o cmd/agent/agent cmd/agent/main.go
+	metricstest-darwin-arm64 -test.v -test.run=^TestIteration4$$ -agent-binary-path=cmd/agent/agent -binary-path=cmd/server/server -server-port=12345 -source-path=.
