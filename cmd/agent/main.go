@@ -8,12 +8,13 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"strconv"
 	"time"
 )
 
 const (
-	pollIntervalDef   = time.Duration(2)
-	reportIntervalDef = time.Duration(10)
+	pollIntervalDef   = 2
+	reportIntervalDef = 10
 	serverAddrDef     = "localhost:8080"
 )
 
@@ -121,17 +122,13 @@ func ParseFlags() {
 	var (
 		err                error
 		serverAddrFlag     string
-		pollIntervalFlag   time.Duration
-		reportIntervalFlag time.Duration
+		pollIntervalFlag   int
+		reportIntervalFlag int
 	)
 
-	msg2 := fmt.Sprintf("\n\nPoll interval: %v\nReport interval: %v", pollIntervalFlag, pollInterval)
-	log.Default().Println(msg2)
-
 	flag.StringVar(&serverAddrFlag, "a", serverAddrDef, "Server address")
-	flag.DurationVar(&pollIntervalFlag, "p", pollIntervalDef*time.Second, "Poll interval")
-	flag.DurationVar(&reportIntervalFlag, "r", reportIntervalDef*time.Second, "Report interval")
-
+	flag.IntVar(&pollIntervalFlag, "p", pollIntervalDef, "Poll interval")
+	flag.IntVar(&reportIntervalFlag, "r", reportIntervalDef, "Report interval")
 	flag.Parse()
 
 	//serverAddrEnv, exists := os.LookupEnv("ADDRESS")
@@ -143,27 +140,27 @@ func ParseFlags() {
 
 	pollIntervalEnv, exists := os.LookupEnv("POLL_INTERVAL")
 	if exists {
-		pollIntervalFlag, err = time.ParseDuration(pollIntervalEnv + "s")
+		pollIntervalFlag, err = strconv.Atoi(pollIntervalEnv)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
-	pollInterval = pollIntervalFlag
+	pollInterval = time.Duration(pollIntervalFlag) * time.Second
 
-	if pollInterval < 1*time.Second {
+	if pollInterval < time.Duration(1)*time.Second {
 		log.Fatal("Poll interval must be >= 1s")
 	}
 
 	reportIntervalEnv, exists := os.LookupEnv("REPORT_INTERVAL")
 	if exists {
-		reportIntervalFlag, err = time.ParseDuration(reportIntervalEnv + "s")
+		reportIntervalFlag, err = strconv.Atoi(reportIntervalEnv)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
-	reportInterval = reportIntervalFlag
+	reportInterval = time.Duration(reportIntervalFlag) * time.Second
 
-	if reportInterval < 1*time.Second {
+	if reportInterval < time.Duration(1)*time.Second {
 		log.Fatal("Report interval must be >= 1s")
 	}
 
