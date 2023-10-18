@@ -14,6 +14,8 @@ import (
 	"sync"
 
 	"github.com/go-chi/chi/v5"
+
+	"github.com/pavelborisofff/go-metrics/internal/logger"
 )
 
 type Gauge float64
@@ -52,14 +54,6 @@ func (s *MemStorage) IncrementCounter(name string, value Counter) {
 	defer s.mu.Unlock()
 
 	s.CounterStorage[name] += value
-}
-
-func middleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		msg := fmt.Sprintf("From: %s, Path: %s, Method: %s", req.RemoteAddr, req.URL.Path, req.Method)
-		log.Println(msg)
-		next.ServeHTTP(res, req)
-	})
 }
 
 func mainHandler(res http.ResponseWriter, req *http.Request, storage *MemStorage) {
@@ -183,7 +177,7 @@ func main() {
 	storage := NewMemStorage()
 
 	r := chi.NewRouter()
-	r.Use(middleware)
+	r.Use(logger.Middleware)
 
 	r.Get("/", func(res http.ResponseWriter, req *http.Request) {
 		mainHandler(res, req, storage)
