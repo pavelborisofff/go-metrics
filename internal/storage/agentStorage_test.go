@@ -1,4 +1,4 @@
-package main
+package storage
 
 import (
 	"net/http"
@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestMemStorage_UpdateGauge(t *testing.T) {
+func TestAgentStorage_UpdateGauge(t *testing.T) {
 	type testType struct {
 		name      string
 		gaugeName string
@@ -25,10 +25,10 @@ func TestMemStorage_UpdateGauge(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			storage := NewMemStorage()
-			storage.UpdateGauge(test.gaugeName, test.values)
+			s := NewAgentStorage()
+			s.UpdateGauge(test.gaugeName, test.values)
 
-			got := storage.GaugeStorage[test.gaugeName]
+			got := s.GaugeStorage[test.gaugeName]
 
 			if got != test.expected {
 				t.Errorf("UpdateGauge() = %v, want %v", got, test.expected)
@@ -37,7 +37,7 @@ func TestMemStorage_UpdateGauge(t *testing.T) {
 	}
 }
 
-func TestMemStorage_IncrementCounter(t *testing.T) {
+func TestAgentStorage_IncrementCounter(t *testing.T) {
 	type testType struct {
 		name        string
 		counterName string
@@ -56,10 +56,10 @@ func TestMemStorage_IncrementCounter(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			storage := NewMemStorage()
-			storage.IncrementCounter(test.counterName, test.values)
+			s := NewAgentStorage()
+			s.IncrementCounter(test.counterName, test.values)
 
-			got := storage.CounterStorage[test.counterName]
+			got := s.CounterStorage[test.counterName]
 
 			if got != test.expected {
 				t.Errorf("UpdateCounter() = %v, want %v", got, test.expected)
@@ -68,8 +68,8 @@ func TestMemStorage_IncrementCounter(t *testing.T) {
 	}
 }
 
-func TestMemStorage_SendMetric(t *testing.T) {
-	storage := NewMemStorage()
+func TestAgentStorage_SendMetric(t *testing.T) {
+	s := NewAgentStorage()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -80,7 +80,7 @@ func TestMemStorage_SendMetric(t *testing.T) {
 			t.Errorf("SendMetric() path = %v, want %v", r.URL.Path, "/update/gauge/anyCounter/10")
 		}
 	}))
-
-	storage.SendMetric("gauge", "anyCounter", 10)
 	defer server.Close()
+
+	s.SendMetric("gauge", "anyCounter", 10, server.URL)
 }
