@@ -1,7 +1,6 @@
 package main
 
 import (
-	_ "embed"
 	"flag"
 	"fmt"
 	"github.com/pavelborisofff/go-metrics/internal/storage"
