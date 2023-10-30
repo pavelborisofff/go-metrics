@@ -115,6 +115,11 @@ func (s *AgentStorage) SendJSONMetric(m Metrics, serverAddr string) {
 
 	c := &http.Client{}
 	res, err := c.Do(req)
+	if err != nil {
+		msg := fmt.Sprintf("Failed to send metric: %s", err)
+		log.Println(msg)
+		return
+	}
 	defer res.Body.Close()
 
 	if err != nil {
@@ -137,12 +142,12 @@ func (s *AgentStorage) SendMetric(metricType string, metricName string, metricVa
 	url := fmt.Sprintf("%s/update/%s/%s/%v", serverAddr, metricType, metricName, metricValue)
 
 	res, err := http.Post(url, "text/plain", nil)
-
 	if err != nil {
 		msg := fmt.Sprintf("Failed to send metric: %s", err)
 		log.Default().Println(msg)
 		return
 	}
+	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
 		msg := fmt.Sprintf("Failed to send metric: %s", res.Status)
@@ -152,6 +157,4 @@ func (s *AgentStorage) SendMetric(metricType string, metricName string, metricVa
 
 	msg := fmt.Sprintf("Metric sent successfully: %s", url)
 	log.Default().Println(msg)
-
-	res.Body.Close()
 }
