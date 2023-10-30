@@ -84,6 +84,7 @@ func UpdateJSONHandler(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, msg, http.StatusBadRequest)
 		return
 	}
+	defer req.Body.Close()
 
 	err = json.Unmarshal(b.Bytes(), &m)
 	if err != nil {
@@ -152,10 +153,6 @@ func ValueHandler(res http.ResponseWriter, req *http.Request) {
 	metricType := chi.URLParam(req, "metric-type")
 	metricName := chi.URLParam(req, "metric-name")
 
-	if metricName == "RandomValue" {
-		fmt.Sprintf("HANDLER:::RandomValue: %s", metricType)
-	}
-
 	switch metricType {
 	case "counter":
 		if v, ok := s.CounterStorage[metricName]; ok {
@@ -189,6 +186,7 @@ func ValueJSONHandler(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
+	defer req.Body.Close()
 
 	err = json.Unmarshal(b.Bytes(), &m)
 	if err != nil {
