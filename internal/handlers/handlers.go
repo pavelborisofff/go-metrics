@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -16,10 +17,11 @@ import (
 
 //go:embed templates/metrics.html
 var htmlMetrics string
+var s = storage.NewMemStorage()
 
-func MainHandler(res http.ResponseWriter, _ *http.Request, storage *storage.MemStorage) {
+func MainHandler(res http.ResponseWriter, _ *http.Request) {
 	tmpl := template.Must(template.New("metrics").Parse(htmlMetrics))
-	err := tmpl.Execute(res, storage)
+	err := tmpl.Execute(res, s)
 
 	if err != nil {
 		log.Println(err)
@@ -28,7 +30,7 @@ func MainHandler(res http.ResponseWriter, _ *http.Request, storage *storage.MemS
 
 }
 
-func UpdateHandler(res http.ResponseWriter, req *http.Request, s *storage.MemStorage) {
+func UpdateHandler(res http.ResponseWriter, req *http.Request) {
 	metricType := chi.URLParam(req, "metric-type")
 	metricName := chi.URLParam(req, "metric-name")
 	metricValue := chi.URLParam(req, "metric-value")
@@ -71,7 +73,59 @@ func UpdateHandler(res http.ResponseWriter, req *http.Request, s *storage.MemSto
 	res.WriteHeader(http.StatusOK)
 }
 
-func MetricsHandler(res http.ResponseWriter, _ *http.Request, s *storage.MemStorage) {
+func UpdateJSONHandler(res http.ResponseWriter, req *http.Request) {
+	var m storage.Metrics
+	var b bytes.Buffer
+
+	_, err := b.ReadFrom(req.Body)
+	if err != nil {
+		msg := fmt.Sprintf("Error: %s", err)
+		log.Println(msg)
+		http.Error(res, msg, http.StatusBadRequest)
+		return
+	}
+
+	err = json.Unmarshal(b.Bytes(), &m)
+	if err != nil {
+		msg := fmt.Sprintf("Error: %s", err)
+		log.Println(msg)
+		http.Error(res, msg, http.StatusBadRequest)
+		return
+	}
+
+	switch m.MType {
+	case storage.CounterType:
+		if m.Delta == nil {
+			msg := fmt.Sprintf("Bad Counter's value: %s", m.ID)
+			log.Println(msg)
+			http.Error(res, msg, http.StatusBadRequest)
+			return
+		}
+
+		s.IncrementCounter(m.ID, storage.Counter(*m.Delta))
+		msg := fmt.Sprintf("Counter %s shanged to %d", m.ID, *m.Delta)
+		log.Println(msg)
+		res.WriteHeader(http.StatusOK)
+	case storage.GaugeType:
+		if m.Value == nil {
+			msg := fmt.Sprintf("Bad Gauge's value: %s", m.ID)
+			log.Println(msg)
+			http.Error(res, msg, http.StatusBadRequest)
+			return
+		}
+
+		s.UpdateGauge(m.ID, storage.Gauge(*m.Value))
+		msg := fmt.Sprintf("Gauge %s updated to %f", m.ID, *m.Value)
+		log.Println(msg)
+		res.WriteHeader(http.StatusOK)
+	default:
+		msg := fmt.Sprintf("Bad metric's type: %s", m.MType)
+		log.Println(msg)
+		http.Error(res, msg, http.StatusBadRequest)
+	}
+}
+
+func MetricsHandler(res http.ResponseWriter, _ *http.Request) {
 	data, err := json.Marshal(s)
 	if err != nil {
 		msg := fmt.Sprintf("Error: %s", err)
@@ -94,7 +148,7 @@ func MetricsHandler(res http.ResponseWriter, _ *http.Request, s *storage.MemStor
 	log.Println(write)
 }
 
-func ValueHandler(res http.ResponseWriter, req *http.Request, s *storage.MemStorage) {
+func ValueHandler(res http.ResponseWriter, req *http.Request) {
 	metricType := chi.URLParam(req, "metric-type")
 	metricName := chi.URLParam(req, "metric-name")
 
@@ -120,4 +174,52 @@ func ValueHandler(res http.ResponseWriter, req *http.Request, s *storage.MemStor
 	default:
 		http.Error(res, "Bad metric's type", http.StatusBadRequest)
 	}
+}
+
+func ValueJSONHandler(res http.ResponseWriter, req *http.Request) {
+	var m storage.Metrics
+	var b bytes.Buffer
+
+	_, err := b.ReadFrom(req.Body)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err = json.Unmarshal(b.Bytes(), &m)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	switch m.MType {
+	case storage.CounterType:
+		if v, ok := s.CounterStorage[m.ID]; ok {
+			m.Delta = new(int64)
+			*m.Delta = int64(v)
+		} else {
+			http.Error(res, "Not found", http.StatusNotFound)
+		}
+	case storage.GaugeType:
+		if v, ok := s.GaugeStorage[m.ID]; ok {
+			m.Value = new(float64)
+			*m.Value = float64(v)
+		} else {
+			http.Error(res, "Not found", http.StatusNotFound)
+		}
+	default:
+		http.Error(res, "Bad metric's type", http.StatusBadRequest)
+	}
+
+	resJSON, err := json.Marshal(m)
+	if err != nil {
+		msg := fmt.Sprintf("Error: %s", err)
+		log.Println(msg)
+		http.Error(res, msg, http.StatusInternalServerError)
+		return
+	}
+
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusOK)
+	res.Write(resJSON)
 }

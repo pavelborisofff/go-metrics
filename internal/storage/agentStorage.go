@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand"
@@ -64,6 +66,71 @@ func (s *AgentStorage) SendMetrics(serverAddr string) error {
 	}
 
 	return nil
+}
+
+func (s *AgentStorage) SendJSONMetrics(serverAddr string) error {
+	var m Metrics
+
+	for name, value := range s.CounterStorage {
+		m = Metrics{
+			ID:    name,
+			MType: CounterType,
+			Delta: new(int64),
+		}
+		*m.Delta = int64(value)
+
+		s.SendMetric(CounterType, name, value, serverAddr)
+	}
+
+	for name, value := range s.GaugeStorage {
+		m = Metrics{
+			ID:    name,
+			MType: GaugeType,
+			Value: new(float64),
+		}
+		*m.Value = float64(value)
+
+		s.SendJSONMetric(m, serverAddr)
+	}
+
+	return nil
+}
+
+func (s *AgentStorage) SendJSONMetric(m Metrics, serverAddr string) {
+	data, err := json.Marshal(m)
+	if err != nil {
+		msg := fmt.Sprintf("Error: %s", err)
+		log.Println(msg)
+		return
+	}
+
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/update/", serverAddr), bytes.NewBuffer(data))
+	if err != nil {
+		msg := fmt.Sprintf("Failed to send metric: %s", err)
+		log.Println(msg)
+		return
+	}
+
+	req.Header.Set("Content-Type", "text/plain")
+
+	c := &http.Client{}
+	res, err := c.Do(req)
+	defer res.Body.Close()
+
+	if err != nil {
+		msg := fmt.Sprintf("Failed to send metric: %s", err)
+		log.Println(msg)
+		return
+	}
+
+	if res.StatusCode != http.StatusOK {
+		msg := fmt.Sprintf("Failed to send metric: %s", res.Status)
+		log.Println(msg)
+		return
+	}
+
+	msg := fmt.Sprintf("Metric sent successfully: %s", string(data))
+	log.Println(msg)
 }
 
 func (s *AgentStorage) SendMetric(metricType string, metricName string, metricValue interface{}, serverAddr string) {

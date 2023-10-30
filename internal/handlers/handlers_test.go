@@ -9,8 +9,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"github.com/pavelborisofff/go-metrics/internal/storage"
 )
 
 func testRequest(t *testing.T, ts *httptest.Server, method, path string) (*http.Response, string) {
@@ -44,11 +42,10 @@ func TestMainHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			s := storage.NewMemStorage()
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
 			w := httptest.NewRecorder()
 
-			MainHandler(w, r, s)
+			MainHandler(w, r)
 
 			assert.Equal(t, test.expectedCode, w.Code, "Status code mismatch")
 
@@ -106,21 +103,11 @@ func TestUpdateHandler(t *testing.T) {
 		},
 	}
 
-	s := storage.NewMemStorage()
 	r := chi.NewRouter()
-
-	r.Get("/", func(res http.ResponseWriter, req *http.Request) {
-		MainHandler(res, req, s)
-	})
-	r.Post("/update/{metric-type}/{metric-name}/{metric-value}", func(res http.ResponseWriter, req *http.Request) {
-		UpdateHandler(res, req, s)
-	})
-	r.Get("/value/{metric-type}/{metric-name}", func(res http.ResponseWriter, req *http.Request) {
-		ValueHandler(res, req, s)
-	})
-	r.Get("/metrics", func(res http.ResponseWriter, req *http.Request) {
-		MetricsHandler(res, req, s)
-	})
+	r.Get("/", MainHandler)
+	r.Post("/update/{metric-type}/{metric-name}/{metric-value}", UpdateHandler)
+	r.Get("/value/{metric-type}/{metric-name}", ValueHandler)
+	r.Get("/metrics", MetricsHandler)
 
 	ts := httptest.NewServer(r)
 	defer ts.Close()
@@ -158,32 +145,23 @@ func TestMetricsHandler(t *testing.T) {
 			method:       http.MethodGet,
 			requestURL:   "/metrics",
 			expectedCode: http.StatusOK,
-			expectedBody: `{"counter":{},"gauge":{}}`,
+			expectedBody: `{"counter":{"anyCounter":5},"gauge":{"anyGauge":123.123123}}`,
 		},
 		{
 			name:         "Get Metrics with data",
 			method:       http.MethodGet,
 			requestURL:   "/metrics",
 			expectedCode: http.StatusOK,
-			expectedBody: `{"counter":{},"gauge":{"anygauge":123.123123}}`,
+			expectedBody: `{"counter":{"anyCounter":5},"gauge":{"anyGauge":321.123123}}`,
 		},
 	}
 
-	s := storage.NewMemStorage()
 	r := chi.NewRouter()
 
-	r.Get("/", func(res http.ResponseWriter, req *http.Request) {
-		MainHandler(res, req, s)
-	})
-	r.Post("/update/{metric-type}/{metric-name}/{metric-value}", func(res http.ResponseWriter, req *http.Request) {
-		UpdateHandler(res, req, s)
-	})
-	r.Get("/value/{metric-type}/{metric-name}", func(res http.ResponseWriter, req *http.Request) {
-		ValueHandler(res, req, s)
-	})
-	r.Get("/metrics", func(res http.ResponseWriter, req *http.Request) {
-		MetricsHandler(res, req, s)
-	})
+	r.Get("/", MainHandler)
+	r.Post("/update/{metric-type}/{metric-name}/{metric-value}", UpdateHandler)
+	r.Get("/value/{metric-type}/{metric-name}", ValueHandler)
+	r.Get("/metrics", MetricsHandler)
 
 	ts := httptest.NewServer(r)
 	defer ts.Close()
@@ -199,7 +177,7 @@ func TestMetricsHandler(t *testing.T) {
 	}
 
 	for _, test := range tests[len(tests)-1:] {
-		s.UpdateGauge("anygauge", 123.123123)
+		s.UpdateGauge("anyGauge", 321.123123)
 		fmt.Println(test.name)
 		fmt.Println(test.requestURL)
 		res, body := testRequest(t, ts, test.method, test.requestURL)
