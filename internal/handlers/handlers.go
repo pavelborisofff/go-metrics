@@ -152,6 +152,10 @@ func ValueHandler(res http.ResponseWriter, req *http.Request) {
 	metricType := chi.URLParam(req, "metric-type")
 	metricName := chi.URLParam(req, "metric-name")
 
+	if metricName == "RandomValue" {
+		fmt.Sprintf("HANDLER:::RandomValue: %s", metricType)
+	}
+
 	switch metricType {
 	case "counter":
 		if v, ok := s.CounterStorage[metricName]; ok {

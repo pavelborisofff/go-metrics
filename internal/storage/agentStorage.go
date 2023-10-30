@@ -51,18 +51,18 @@ func (s *AgentStorage) UpdateMetrics() {
 	s.UpdateGauge("StackSys", Gauge(m.StackSys))
 	s.UpdateGauge("Sys", Gauge(m.Sys))
 	s.UpdateGauge("TotalAlloc", Gauge(m.TotalAlloc))
+	s.UpdateGauge("RandomValue", Gauge(rand.Uint64()))
 
 	s.IncrementCounter("PollCount", 1)
-	s.IncrementCounter("RandomValue", Counter(rand.Uint64()))
 }
 
 func (s *AgentStorage) SendMetrics(serverAddr string) error {
 	for name, value := range s.CounterStorage {
-		s.SendMetric("counter", name, value, serverAddr)
+		s.SendMetric(CounterType, name, value, serverAddr)
 	}
 
 	for name, value := range s.GaugeStorage {
-		s.SendMetric("gauge", name, value, serverAddr)
+		s.SendMetric(GaugeType, name, value, serverAddr)
 	}
 
 	return nil
@@ -152,3 +152,90 @@ func (s *AgentStorage) SendMetric(metricType string, metricName string, metricVa
 	msg := fmt.Sprintf("Metric sent successfully: %s", url)
 	log.Default().Println(msg)
 }
+
+/*func (s *AgentStorage) SendJSONMetric(m Metrics, serverAddr string) {
+	data, err := json.Marshal(m)
+	if err != nil {
+		msg := fmt.Sprintf("Error: %s", err)
+		log.Println(msg)
+		return
+	}
+
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/update/", serverAddr), bytes.NewBuffer(data))
+	if err != nil {
+		msg := fmt.Sprintf("Failed to send metric: %s", err)
+		log.Println(msg)
+		return
+	}
+
+	req.Header.Set("Content-Type", "text/plain")
+
+	var res *http.Response
+	err = retry.Do(
+		func() error {
+			c := &http.Client{}
+			res, err = c.Do(req)
+			return err
+		},
+		retry.Attempts(5),
+		retry.OnRetry(func(n uint, err error) {
+			log.Printf("Retry #%d: %s", n, err)
+		}),
+	)
+	if err != nil {
+		msg := fmt.Sprintf("Failed to send metric: %s", err)
+		log.Println(msg)
+		return
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		msg := fmt.Sprintf("Failed to send metric: %s", res.Status)
+		log.Println(msg)
+		return
+	}
+
+	msg := fmt.Sprintf("Metric sent successfully: %s", string(data))
+	log.Println(msg)
+}
+
+func (s *AgentStorage) SendMetric(metricType string, metricName string, metricValue interface{}, serverAddr string) {
+	url := fmt.Sprintf("%s/update/%s/%s/%v", serverAddr, metricType, metricName, metricValue)
+
+	req, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		msg := fmt.Sprintf("Failed to send metric: %s", err)
+		log.Println(msg)
+		return
+	}
+
+	req.Header.Set("Content-Type", "text/plain")
+
+	var res *http.Response
+	err = retry.Do(
+		func() error {
+			c := &http.Client{}
+			res, err = c.Do(req)
+			return err
+		},
+		retry.Attempts(5),
+		retry.OnRetry(func(n uint, err error) {
+			log.Printf("Retry #%d: %s", n, err)
+		}),
+	)
+	if err != nil {
+		msg := fmt.Sprintf("Failed to send metric: %s", err)
+		log.Println(msg)
+		return
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		msg := fmt.Sprintf("Failed to send metric: %s", res.Status)
+		log.Default().Println(msg)
+		return
+	}
+
+	msg := fmt.Sprintf("Metric sent successfully: %s", url)
+	log.Default().Println(msg)
+}*/

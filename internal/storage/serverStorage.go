@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -41,6 +42,9 @@ func (s *MemStorage) UpdateGauge(name string, value Gauge) {
 }
 
 func (s *MemStorage) IncrementCounter(name string, value Counter) {
+	if name == "RandomValue" {
+		fmt.Sprintf("STORAGE:::RandomValue: %d", value)
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
