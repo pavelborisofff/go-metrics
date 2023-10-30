@@ -122,12 +122,6 @@ func (s *AgentStorage) SendJSONMetric(m Metrics, serverAddr string) {
 	}
 	defer res.Body.Close()
 
-	if err != nil {
-		msg := fmt.Sprintf("Failed to send metric: %s", err)
-		log.Println(msg)
-		return
-	}
-
 	if res.StatusCode != http.StatusOK {
 		msg := fmt.Sprintf("Failed to send metric: %s", res.Status)
 		log.Println(msg)
