@@ -69,6 +69,9 @@ func (s *MemStorage) ToFile(f string) error {
 
 func (s *MemStorage) FromFile(f string) error {
 	file, err := os.OpenFile(f, os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		return err
+	}
 	defer file.Close()
 
 	data, err := os.ReadFile(f)
