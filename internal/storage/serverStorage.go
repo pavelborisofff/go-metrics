@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"encoding/json"
+	"os"
 	"sync"
 )
 
@@ -25,12 +27,21 @@ const (
 	GaugeType   = "gauge"
 )
 
+var (
+	instance *MemStorage
+	once     sync.Once
+)
+
 func NewMemStorage() *MemStorage {
-	return &MemStorage{
-		CounterStorage: make(map[string]Counter),
-		GaugeStorage:   make(map[string]Gauge),
-		mu:             &sync.Mutex{},
-	}
+	once.Do(func() {
+		instance = &MemStorage{
+			CounterStorage: make(map[string]Counter),
+			GaugeStorage:   make(map[string]Gauge),
+			mu:             &sync.Mutex{},
+		}
+	})
+
+	return instance
 }
 
 func (s *MemStorage) UpdateGauge(name string, value Gauge) {
@@ -45,4 +56,33 @@ func (s *MemStorage) IncrementCounter(name string, value Counter) {
 	defer s.mu.Unlock()
 
 	s.CounterStorage[name] += value
+}
+
+func (s *MemStorage) ToFile(f string) error {
+	data, err := json.MarshalIndent(s, "", "   ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(f, data, 0644)
+}
+
+func (s *MemStorage) FromFile(f string) error {
+	file, err := os.OpenFile(f, os.O_WRONLY|os.O_CREATE, 0644)
+	defer file.Close()
+
+	data, err := os.ReadFile(f)
+	if err != nil {
+		return err
+	}
+
+	if len(data) > 0 {
+		if err = json.Unmarshal(data, s); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	return nil
 }
