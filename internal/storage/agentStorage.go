@@ -1,9 +1,9 @@
 package storage
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/pavelborisofff/go-metrics/internal/gzip"
 	"log"
 	"math/rand"
 	"net/http"
@@ -104,7 +104,14 @@ func (s *AgentStorage) SendJSONMetric(m Metrics, serverAddr string) {
 		return
 	}
 
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/update/", serverAddr), bytes.NewBuffer(data))
+	compressedData, err := gzip.CompressData(data)
+	if err != nil {
+		msg := fmt.Sprintf("Error compressing metric data: %s", err)
+		log.Println(msg)
+		return
+	}
+
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/update/", serverAddr), compressedData)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to send metric: %s", err)
 		log.Println(msg)
@@ -112,6 +119,7 @@ func (s *AgentStorage) SendJSONMetric(m Metrics, serverAddr string) {
 	}
 
 	req.Header.Set("Content-Type", "text/plain")
+	req.Header.Set("Content-Encoding", "gzip")
 
 	c := &http.Client{}
 	res, err := c.Do(req)

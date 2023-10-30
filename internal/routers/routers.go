@@ -3,6 +3,7 @@ package routers
 import (
 	"github.com/go-chi/chi/v5"
 
+	"github.com/pavelborisofff/go-metrics/internal/gzip"
 	"github.com/pavelborisofff/go-metrics/internal/handlers"
 	"github.com/pavelborisofff/go-metrics/internal/logger"
 )
@@ -10,6 +11,7 @@ import (
 func InitRouter() *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(logger.Middleware)
+	r.Use(gzip.GzipHandle)
 
 	r.Get("/", handlers.MainHandler)
 	r.Post("/update/{metric-type}/{metric-name}/{metric-value}", handlers.UpdateHandler)
