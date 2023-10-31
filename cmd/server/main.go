@@ -3,14 +3,15 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/pavelborisofff/go-metrics/internal/storage"
-	"log"
+	"go.uber.org/zap"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
 
+	"github.com/pavelborisofff/go-metrics/internal/logger"
 	"github.com/pavelborisofff/go-metrics/internal/routers"
+	"github.com/pavelborisofff/go-metrics/internal/storage"
 )
 
 const (
@@ -23,9 +24,9 @@ const (
 var (
 	ServerAddr   string
 	SaveInterval time.Duration
-
-	FileStore string
-	Restore   bool
+	FileStore    string
+	Restore      bool
+	log          = logger.Log
 )
 
 func ParseFlags() {
@@ -55,7 +56,7 @@ func ParseFlags() {
 	if exists {
 		saveIntervalFlag, err = strconv.Atoi(saveIntervalEnv)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal("Error parsing STORE_INTERVAL", zap.Error(err))
 		}
 	}
 	SaveInterval = time.Duration(saveIntervalFlag) * time.Second
@@ -72,24 +73,30 @@ func ParseFlags() {
 	if exists {
 		restoreFlag, err = strconv.ParseBool(restoreEnv)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal("Error parsing RESTORE", zap.Error(err))
 		}
 	}
 	Restore = restoreFlag
 
-	msg := fmt.Sprintf("\nServer address: %s\nSave interval: %d\nFile store: %s\nRestore: %t", serverAddrFlag, saveIntervalFlag, fileStoreFlag, restoreFlag)
-	log.Println(msg)
+	msg := fmt.Sprintf("Server address: %s\nSave interval: %d\nFile store: %s\nRestore: %t", serverAddrFlag, saveIntervalFlag, fileStoreFlag, restoreFlag)
+	log.Info(msg)
 }
 
-func init() {
-	ParseFlags()
+func main() {
+	err := logger.InitLogger()
+	if err != nil {
+		panic("cannot initialize zap")
+	}
+	defer log.Sync()
+
 	s := storage.NewMemStorage()
+	ParseFlags()
 
 	if Restore {
 		if err := s.FromFile(FileStore); err != nil {
-			log.Fatal(err)
+			log.Fatal("Error restore metrics", zap.Error(err))
 		}
-		log.Println("Metrics restored")
+		log.Info("Metrics restored")
 	}
 
 	go func() {
@@ -97,15 +104,13 @@ func init() {
 			ticker := time.NewTicker(SaveInterval)
 			for range ticker.C {
 				if err := s.ToFile(FileStore); err != nil {
-					log.Fatal(err)
+					log.Fatal("Error save metrics", zap.Error(err))
 				}
-				log.Println("Metrics saved")
+				log.Debug("Metrics saved")
 			}
 		}
 	}()
-}
 
-func main() {
 	r := routers.InitRouter()
-	log.Fatal(http.ListenAndServe(ServerAddr, r))
+	log.Fatal("Server error", zap.Error(http.ListenAndServe(ServerAddr, r)))
 }

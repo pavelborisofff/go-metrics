@@ -3,11 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
+	"go.uber.org/zap"
 	"os"
 	"strconv"
 	"time"
 
+	"github.com/pavelborisofff/go-metrics/internal/logger"
 	"github.com/pavelborisofff/go-metrics/internal/storage"
 )
 
@@ -21,6 +22,7 @@ var (
 	pollInterval   time.Duration
 	reportInterval time.Duration
 	serverAddr     string
+	log            = logger.Log
 )
 
 func ParseFlags() {
@@ -47,7 +49,7 @@ func ParseFlags() {
 	if exists {
 		pollIntervalFlag, err = strconv.Atoi(pollIntervalEnv)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal("Error parsing POLL_INTERVAL", zap.Error(err))
 		}
 	}
 	pollInterval = time.Duration(pollIntervalFlag) * time.Second
@@ -60,7 +62,7 @@ func ParseFlags() {
 	if exists {
 		reportIntervalFlag, err = strconv.Atoi(reportIntervalEnv)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal("Error parsing REPORT_INTERVAL", zap.Error(err))
 		}
 	}
 	reportInterval = time.Duration(reportIntervalFlag) * time.Second
@@ -70,10 +72,16 @@ func ParseFlags() {
 	}
 
 	msg := fmt.Sprintf("\nServer address: %s\nPoll interval: %v\nReport interval: %v", serverAddr, pollInterval, reportInterval)
-	log.Default().Println(msg)
+	log.Info(msg)
 }
 
 func main() {
+	err := logger.InitLogger()
+	if err != nil {
+		panic("cannot initialize zap")
+	}
+	defer log.Sync()
+
 	s := storage.NewAgentStorage()
 	ParseFlags()
 

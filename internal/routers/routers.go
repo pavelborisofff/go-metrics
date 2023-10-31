@@ -10,7 +10,7 @@ import (
 
 func InitRouter() *chi.Mux {
 	r := chi.NewRouter()
-	r.Use(logger.Middleware)
+	r.Use(logger.LogHandle)
 	r.Use(gzip.GzipHandle)
 
 	r.Get("/", handlers.MainHandler)

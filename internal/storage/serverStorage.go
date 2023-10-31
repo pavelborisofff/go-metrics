@@ -79,12 +79,12 @@ func (s *MemStorage) FromFile(f string) error {
 		return err
 	}
 
-	if len(data) > 0 {
-		if err = json.Unmarshal(data, s); err != nil {
-			return err
-		}
-
+	if len(data) == 0 {
 		return nil
+	}
+
+	if err = json.Unmarshal(data, s); err != nil {
+		return err
 	}
 
 	return nil

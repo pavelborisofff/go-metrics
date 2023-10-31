@@ -35,17 +35,15 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 func InitLogger() error {
 	logger, err := zap.NewDevelopment()
 	if err != nil {
-		panic("cannot initialize zap")
+		return err
 	}
-	defer logger.Sync()
 
 	Log = logger
 	return nil
 }
 
-func Middleware(next http.Handler) http.Handler {
+func LogHandle(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = InitLogger()
 		start := time.Now()
 
 		ResponseData := &responseData{
