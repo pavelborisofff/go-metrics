@@ -38,7 +38,6 @@ func ParseFlags() {
 	flag.IntVar(&reportIntervalFlag, "r", reportIntervalDef, "Report interval")
 	flag.Parse()
 
-	//serverAddrEnv, exists := os.LookupEnv("ADDRESS")
 	serverAddrEnv, exists := os.LookupEnv("ADDRESS")
 	if exists {
 		serverAddrFlag = serverAddrEnv

@@ -219,8 +219,6 @@ func ValueJSONHandler(res http.ResponseWriter, req *http.Request) {
 
 	switch m.MType {
 	case storage.CounterType:
-		log.Debug("m.MTyper", zap.ByteString("data", b.Bytes()))
-		log.Debug("m.MTyper", zap.Any("s", s), zap.Any("m", m))
 		if v, ok := s.CounterStorage[m.ID]; ok {
 			m.Delta = new(int64)
 			*m.Delta = int64(v)
