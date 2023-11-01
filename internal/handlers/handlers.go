@@ -22,10 +22,12 @@ var htmlMetrics string
 
 var (
 	s   = storage.NewMemStorage()
-	log = logger.Log
+	log = logger.GetLogger()
 )
 
 func MainHandler(res http.ResponseWriter, _ *http.Request) {
+	res.Header().Set("Content-Type", "text/html; charset=utf-8")
+	res.WriteHeader(http.StatusOK)
 	tmpl := template.Must(template.New("metrics").Parse(htmlMetrics))
 	err := tmpl.Execute(res, s)
 
@@ -33,9 +35,6 @@ func MainHandler(res http.ResponseWriter, _ *http.Request) {
 		log.Error("Error execute template", zap.Error(err))
 		http.Error(res, "Error execute template", http.StatusInternalServerError)
 	}
-
-	res.Header().Set("Content-Type", "text/html; charset=utf-8")
-	res.WriteHeader(http.StatusOK)
 }
 
 func UpdateHandler(res http.ResponseWriter, req *http.Request) {
@@ -55,7 +54,7 @@ func UpdateHandler(res http.ResponseWriter, req *http.Request) {
 		}
 
 		s.IncrementCounter(metricName, storage.Counter(v))
-		log.Info("Counter change", zap.String("name", metricName), zap.Uint64("value", v))
+		log.Debug("Counter change", zap.String("name", metricName), zap.Uint64("value", v))
 
 	case storage.GaugeType:
 		v, err := strconv.ParseFloat(metricValue, 64)
@@ -68,7 +67,7 @@ func UpdateHandler(res http.ResponseWriter, req *http.Request) {
 		}
 
 		s.UpdateGauge(metricName, storage.Gauge(v))
-		log.Info("Gauge change", zap.String("name", metricName), zap.Float64("value", v))
+		log.Debug("Gauge change", zap.String("name", metricName), zap.Float64("value", v))
 
 	default:
 		msg := fmt.Sprintf("Bad metric's type: %s", metricType)
@@ -123,7 +122,7 @@ func UpdateJSONHandler(res http.ResponseWriter, req *http.Request) {
 
 		s.UpdateGauge(m.ID, storage.Gauge(*m.Value))
 		msg := fmt.Sprintf("Gauge %s updated to %f", m.ID, *m.Value)
-		log.Info(msg)
+		log.Debug(msg)
 		res.WriteHeader(http.StatusOK)
 	default:
 		msg := fmt.Sprintf("Bad metric's type: %s", m.MType)
@@ -220,6 +219,8 @@ func ValueJSONHandler(res http.ResponseWriter, req *http.Request) {
 
 	switch m.MType {
 	case storage.CounterType:
+		log.Debug("m.MTyper", zap.ByteString("data", b.Bytes()))
+		log.Debug("m.MTyper", zap.Any("s", s), zap.Any("m", m))
 		if v, ok := s.CounterStorage[m.ID]; ok {
 			m.Delta = new(int64)
 			*m.Delta = int64(v)

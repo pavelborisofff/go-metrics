@@ -22,7 +22,7 @@ var (
 	pollInterval   time.Duration
 	reportInterval time.Duration
 	serverAddr     string
-	log            = logger.Log
+	log            = logger.GetLogger()
 )
 
 func ParseFlags() {
@@ -76,10 +76,6 @@ func ParseFlags() {
 }
 
 func main() {
-	err := logger.InitLogger()
-	if err != nil {
-		panic("cannot initialize zap")
-	}
 	defer log.Sync()
 
 	s := storage.NewAgentStorage()
@@ -97,7 +93,7 @@ func main() {
 		case <-reportTicker.C:
 			err := s.SendJSONMetrics(serverAddr)
 			if err != nil {
-				return
+				log.Error("Error sending metrics", zap.Error(err))
 			}
 		}
 	}

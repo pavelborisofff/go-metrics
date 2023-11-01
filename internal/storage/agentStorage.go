@@ -3,17 +3,16 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/pavelborisofff/go-metrics/internal/gzip"
+	"github.com/pavelborisofff/go-metrics/internal/logger"
 	"go.uber.org/zap"
 	"math/rand"
 	"net/http"
 	"runtime"
-
-	"github.com/pavelborisofff/go-metrics/internal/gzip"
-	"github.com/pavelborisofff/go-metrics/internal/logger"
 )
 
 var (
-	log = logger.Log
+	log = logger.GetLogger()
 )
 
 type AgentStorage struct {
@@ -111,19 +110,19 @@ func (s *AgentStorage) SendJSONMetrics(serverAddr string) error {
 func (s *AgentStorage) SendJSONMetric(m Metrics, serverAddr string) error {
 	data, err := json.Marshal(m)
 	if err != nil {
-		log.Error("Error marshaling metric data", zap.Error(err))
+		log.Error("Error marshaling JSON data", zap.Error(err))
 		return err
 	}
 
 	compressedData, err := gzip.CompressData(data)
 	if err != nil {
-		log.Error("Error compressing metric data", zap.Error(err))
+		log.Error("Error compressing JSON data", zap.Error(err))
 		return err
 	}
 
 	req, err := http.NewRequest("POST", fmt.Sprintf("%s/update/", serverAddr), compressedData)
 	if err != nil {
-		log.Error("Error creating request", zap.Error(err))
+		log.Error("Error creating request JSON", zap.Error(err))
 		return err
 	}
 
@@ -139,28 +138,29 @@ func (s *AgentStorage) SendJSONMetric(m Metrics, serverAddr string) error {
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		log.Error("Error sending metric", zap.String("status", res.Status))
+		log.Error("Error sending JSON", zap.String("status", res.Status))
 		return err
 	}
 
-	log.Debug("Metric sent successfully", zap.ByteString("data", data))
+	log.Info("JSON sent successfully", zap.ByteString("data", data))
 	return nil
 }
 
-func (s *AgentStorage) SendMetric(metricType string, metricName string, metricValue interface{}, serverAddr string) {
+func (s *AgentStorage) SendMetric(metricType string, metricName string, metricValue interface{}, serverAddr string) error {
 	url := fmt.Sprintf("%s/update/%s/%s/%v", serverAddr, metricType, metricName, metricValue)
 
 	res, err := http.Post(url, "text/plain", nil)
 	if err != nil {
 		log.Debug("Failed to send metric", zap.Error(err))
-		return
+		return err
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
 		log.Debug("Error sending metric", zap.String("status", res.Status))
-		return
+		return err
 	}
 
-	log.Debug("Metric sent successfully", zap.String("url", url))
+	log.Info("Metric sent successfully", zap.String("url", url))
+	return nil
 }

@@ -26,7 +26,7 @@ var (
 	SaveInterval time.Duration
 	FileStore    string
 	Restore      bool
-	log          = logger.Log
+	log          = logger.GetLogger()
 )
 
 func ParseFlags() {
@@ -83,10 +83,6 @@ func ParseFlags() {
 }
 
 func main() {
-	err := logger.InitLogger()
-	if err != nil {
-		panic("cannot initialize zap")
-	}
 	defer log.Sync()
 
 	s := storage.NewMemStorage()
