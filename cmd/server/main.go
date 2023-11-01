@@ -96,14 +96,16 @@ func main() {
 	}
 
 	go func() {
-		if FileStore != "" && SaveInterval > 0 {
-			ticker := time.NewTicker(SaveInterval)
-			for range ticker.C {
-				if err := s.ToFile(FileStore); err != nil {
-					log.Fatal("Error save metrics", zap.Error(err))
-				}
-				log.Debug("Metrics saved")
+		if FileStore == "" || SaveInterval <= 0 {
+			return
+		}
+
+		ticker := time.NewTicker(SaveInterval)
+		for range ticker.C {
+			if err := s.ToFile(FileStore); err != nil {
+				log.Fatal("Error saving metrics", zap.Error(err))
 			}
+			log.Debug("Metrics saved")
 		}
 	}()
 
