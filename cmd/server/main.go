@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"go.uber.org/zap"
 	"net/http"
@@ -111,10 +110,10 @@ func main() {
 		log.Info("Metrics restored")
 	}
 
-	if err := storage.InitDB(DBConn); err != nil {
-		log.Fatal("Error init DB", zap.Error(err))
-	}
-	defer storage.DB.Close(context.Background())
+	//if err := storage.InitDB(DBConn); err != nil {
+	//	log.Fatal("Error init DB", zap.Error(err))
+	//}
+	//defer storage.DB.Close(context.Background())
 
 	go func() {
 		if FileStore == "" || SaveInterval <= 0 {
