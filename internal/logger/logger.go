@@ -2,12 +2,16 @@ package logger
 
 import (
 	"net/http"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
 )
 
-var Log = zap.NewNop()
+var (
+	instance = zap.NewNop()
+	once     sync.Once
+)
 
 type (
 	responseData struct {
@@ -32,20 +36,20 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 	r.responseData.status = statusCode
 }
 
-func InitLogger() error {
-	logger, err := zap.NewDevelopment()
-	if err != nil {
-		panic("cannot initialize zap")
-	}
-	defer logger.Sync()
+func GetLogger() *zap.Logger {
+	once.Do(func() {
+		logger, err := zap.NewDevelopment()
+		if err != nil {
+			panic(err)
+		}
+		instance = logger
+	})
 
-	Log = logger
-	return nil
+	return instance
 }
 
-func Middleware(next http.Handler) http.Handler {
+func LogHandle(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = InitLogger()
 		start := time.Now()
 
 		ResponseData := &responseData{
@@ -61,12 +65,15 @@ func Middleware(next http.Handler) http.Handler {
 
 		duration := time.Since(start)
 
-		Log.Info("request",
+		instance.Info("request",
 			zap.String("method", r.Method),
 			zap.String("url", r.URL.String()),
 			zap.Int("status", ResponseData.status),
 			zap.Int("size", ResponseData.size),
 			zap.Duration("duration", duration),
+			zap.String("Content-Type", r.Header.Get("Content-Type")),
+			zap.String("Content-Encoding", r.Header.Get("Content-Encoding")),
+			zap.String("Accept-Encoding", r.Header.Get("Accept-Encoding")),
 		)
 	})
 }
