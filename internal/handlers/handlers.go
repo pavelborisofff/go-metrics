@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -34,13 +35,19 @@ func MainHandler(res http.ResponseWriter, _ *http.Request) {
 	if err != nil {
 		log.Error("Error execute template", zap.Error(err))
 		http.Error(res, "Error execute template", http.StatusInternalServerError)
+		return
 	}
 }
 
 func PingHandler(res http.ResponseWriter, _ *http.Request) {
-	if err := storage.PingDB(); err != nil {
-		res.WriteHeader(http.StatusInternalServerError)
-		res.Write([]byte("Error pinging database"))
+	if storage.DB == nil {
+		log.Debug("DB is nil")
+		http.Error(res, "DB is nil", http.StatusInternalServerError)
+		return
+	}
+
+	if err := storage.DB.Ping(context.Background()); err != nil {
+		http.Error(res, "Error connecting to DB", http.StatusInternalServerError)
 		return
 	}
 

@@ -18,7 +18,8 @@ const (
 	saveIntervalDef = 300
 	fileStoreDef    = "/tmp/metrics-db.json"
 	restoreDef      = true
-	dbConnDef       = "host=localhost port=15432 user=postgres password=password dbname=praktikum sslmode=disable"
+	dbConnDef       = "postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable"
+	//dbConnDef = "host=localhost port=15432 user=postgres password=password dbname=praktikum sslmode=disable"
 )
 
 var (
@@ -110,9 +111,11 @@ func main() {
 		log.Info("Metrics restored")
 	}
 
-	//if err := storage.InitDB(DBConn); err != nil {
-	//	log.Fatal("Error init DB", zap.Error(err))
-	//}
+	db, err := storage.InitDB(DBConn)
+	if err != nil {
+		log.Error("Error init DB", zap.Error(err))
+	}
+	storage.DB = db
 	//defer storage.DB.Close(context.Background())
 
 	go func() {

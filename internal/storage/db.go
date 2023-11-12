@@ -3,31 +3,33 @@ package storage
 import (
 	"context"
 	"github.com/jackc/pgx/v5"
+	"go.uber.org/zap"
 )
 
 var DB *pgx.Conn
 
-func InitDB(ps string) error {
+func InitDB(ps string) (*pgx.Conn, error) {
+	ctx := context.Background()
 	connConfig, err := pgx.ParseConfig(ps)
 	if err != nil {
-		return err
+		log.Error("Error parsing connection string", zap.Error(err))
+		return nil, err
 	}
 
-	conn, err := pgx.ConnectConfig(context.Background(), connConfig)
+	db, err := pgx.ConnectConfig(ctx, connConfig)
 	if err != nil {
-		return err
+		log.Error("Error connecting to DB", zap.Error(err))
+		return nil, err
 	}
 
-	DB = conn
-	return nil
+	//DB = db
+	return db, nil
 }
 
-func PingDB() error {
-	err := DB.Ping(context.Background())
+//func (db *DB) Close() {
+//	db.Conn.Close(context.Background())
+//}
 
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
+//func SetDB(db *pgx.Conn) {
+//	DB = db
+//}
