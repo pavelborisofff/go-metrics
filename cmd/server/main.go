@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"go.uber.org/zap"
 	"net/http"
@@ -18,8 +19,8 @@ const (
 	saveIntervalDef = 300
 	fileStoreDef    = "/tmp/metrics-db.json"
 	restoreDef      = true
-	dbConnDef       = "postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable"
-	//dbConnDef = "host=localhost port=15432 user=postgres password=password dbname=praktikum sslmode=disable"
+	//dbConnDef       = "postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable"
+	dbConnDef = "host=localhost port=15432 user=postgres password=password dbname=praktikum sslmode=disable"
 )
 
 var (
@@ -111,12 +112,10 @@ func main() {
 		log.Info("Metrics restored")
 	}
 
-	db, err := storage.InitDB(DBConn)
-	if err != nil {
+	if err := storage.InitDB(DBConn); err != nil {
 		log.Error("Error init DB", zap.Error(err))
 	}
-	storage.DB = db
-	//defer storage.DB.Close(context.Background())
+	defer storage.DB.Close(context.Background())
 
 	go func() {
 		if FileStore == "" || SaveInterval <= 0 {
