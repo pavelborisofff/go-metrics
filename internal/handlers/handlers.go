@@ -38,15 +38,14 @@ func MainHandler(res http.ResponseWriter, _ *http.Request) {
 }
 
 func PingHandler(res http.ResponseWriter, _ *http.Request) {
-	res.WriteHeader(http.StatusOK)
-	mockDB := storage.NewMockDB()
-
-	err := mockDB.PingDB()
-
-	if err != nil {
-		log.Error("Error ping DB", zap.Error(err))
-		http.Error(res, "Error ping DB", http.StatusInternalServerError)
+	if err := storage.PingDB(); err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		res.Write([]byte("Error pinging database"))
+		return
 	}
+
+	res.WriteHeader(http.StatusOK)
+	res.Write([]byte("Ping successful"))
 }
 
 func UpdateHandler(res http.ResponseWriter, req *http.Request) {

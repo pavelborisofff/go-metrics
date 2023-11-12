@@ -1,8 +1,8 @@
 package main
 
 import (
+	"context"
 	"flag"
-	"fmt"
 	"go.uber.org/zap"
 	"net/http"
 	"os"
@@ -19,6 +19,7 @@ const (
 	saveIntervalDef = 300
 	fileStoreDef    = "/tmp/metrics-db.json"
 	restoreDef      = true
+	dbConnDef       = "host=localhost port=15432 user=postgres password=password dbname=praktikum sslmode=disable"
 )
 
 var (
@@ -26,6 +27,7 @@ var (
 	SaveInterval time.Duration
 	FileStore    string
 	Restore      bool
+	DBConn       string
 	log          = logger.GetLogger()
 )
 
@@ -36,11 +38,13 @@ func ParseFlags() {
 		saveIntervalFlag int
 		fileStoreFlag    string
 		restoreFlag      bool
+		dbConnFlag       string
 	)
 	flag.StringVar(&serverAddrFlag, "a", serverAddrDef, "Server address")
 	flag.IntVar(&saveIntervalFlag, "i", saveIntervalDef, "Save to file interval (sec)")
 	flag.StringVar(&fileStoreFlag, "f", fileStoreDef, "Server address")
 	flag.BoolVar(&restoreFlag, "r", restoreDef, "Restore metrics from storage")
+	flag.StringVar(&dbConnFlag, "d", dbConnDef, "Database connection string")
 	flag.Parse()
 
 	// Server address
@@ -78,8 +82,20 @@ func ParseFlags() {
 	}
 	Restore = restoreFlag
 
-	msg := fmt.Sprintf("Server address: %s\nSave interval: %d\nFile store: %s\nRestore: %t", serverAddrFlag, saveIntervalFlag, fileStoreFlag, restoreFlag)
-	log.Info(msg)
+	// Database connection
+	dbConnEnv, exists := os.LookupEnv("DATABASE_DSN")
+	if exists {
+		dbConnFlag = dbConnEnv
+	}
+	DBConn = dbConnFlag
+
+	log.Info("Server address",
+		zap.String("Server address", ServerAddr),
+		zap.Duration("Save interval", SaveInterval),
+		zap.String("File store", FileStore),
+		zap.Bool("Restore", Restore),
+		zap.String("Database connection", DBConn),
+	)
 }
 
 func main() {
@@ -94,6 +110,11 @@ func main() {
 		}
 		log.Info("Metrics restored")
 	}
+
+	if err := storage.InitDB(DBConn); err != nil {
+		log.Fatal("Error init DB", zap.Error(err))
+	}
+	defer storage.DB.Close(context.Background())
 
 	go func() {
 		if FileStore == "" || SaveInterval <= 0 {
