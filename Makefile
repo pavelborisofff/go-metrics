@@ -32,4 +32,4 @@ git-checkout:
 go-run-autotests:
 	go build -o cmd/server/server cmd/server/main.go
 	go build -o cmd/agent/agent cmd/agent/main.go
-	metricstest-darwin-arm64 -test.v -test.run=^TestIteration${TEST_NUM}$$ -agent-binary-path=cmd/agent/agent -binary-path=cmd/server/server -server-port=12345 -source-path=. -file-storage-path=TEMP_FILE
+	metricstest-darwin-arm64 -test.v -test.run=^TestIteration${TEST_NUM}[AB]$$ -agent-binary-path=cmd/agent/agent -binary-path=cmd/server/server -server-port=12345 -source-path=. -file-storage-path=TEMP_FILE -database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable'
