@@ -20,6 +20,8 @@ var htmlMetrics string
 var s = storage.NewMemStorage()
 
 func MainHandler(res http.ResponseWriter, _ *http.Request) {
+	res.Header().Set("Content-Type", "text/html; charset=utf-8")
+	res.WriteHeader(http.StatusOK)
 	tmpl := template.Must(template.New("metrics").Parse(htmlMetrics))
 	err := tmpl.Execute(res, s)
 
@@ -27,7 +29,6 @@ func MainHandler(res http.ResponseWriter, _ *http.Request) {
 		log.Println(err)
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 	}
-
 }
 
 func UpdateHandler(res http.ResponseWriter, req *http.Request) {
@@ -223,5 +224,10 @@ func ValueJSONHandler(res http.ResponseWriter, req *http.Request) {
 
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
-	res.Write(resJSON)
+
+	_, err = res.Write(resJSON)
+	if err != nil {
+		return
+	}
+
 }
