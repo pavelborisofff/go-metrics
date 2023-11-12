@@ -87,7 +87,7 @@ func main() {
 		case <-pollTicker.C:
 			s.UpdateMetrics()
 		case <-reportTicker.C:
-			err := s.SendMetrics(serverAddr)
+			err := s.SendJSONMetrics(serverAddr)
 			if err != nil {
 				return
 			}

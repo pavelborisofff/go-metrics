@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/pavelborisofff/go-metrics/internal/storage"
 	"log"
 	"net/http"
 	"os"
@@ -32,7 +31,6 @@ func ParseFlags() {
 
 func main() {
 	ParseFlags()
-	s := storage.NewMemStorage()
-	r := routers.InitRouter(s)
+	r := routers.InitRouter()
 	log.Fatal(http.ListenAndServe(ServerAddr, r))
 }
