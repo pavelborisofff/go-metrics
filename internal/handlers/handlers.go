@@ -37,6 +37,18 @@ func MainHandler(res http.ResponseWriter, _ *http.Request) {
 	}
 }
 
+func PingHandler(res http.ResponseWriter, _ *http.Request) {
+	res.WriteHeader(http.StatusOK)
+	mockDB := storage.NewMockDB()
+
+	err := mockDB.PingDB()
+
+	if err != nil {
+		log.Error("Error ping DB", zap.Error(err))
+		http.Error(res, "Error ping DB", http.StatusInternalServerError)
+	}
+}
+
 func UpdateHandler(res http.ResponseWriter, req *http.Request) {
 	metricType := chi.URLParam(req, "metric-type")
 	metricName := chi.URLParam(req, "metric-name")
