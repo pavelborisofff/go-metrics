@@ -21,7 +21,7 @@ const (
 	fileStoreDef    = "/tmp/metrics-db.json"
 	restoreDef      = true
 	// TODO: remove this
-	dbConnDef = "postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable"
+	dbConnDef = "postgres://postgres:password@localhost:15432/praktikum?sslmode=disable"
 	//dbConnDef = "host=localhost port=15432 user=postgres password=password dbname=praktikum sslmode=disable"
 	//dbConnDef = ""
 )
@@ -130,25 +130,33 @@ func main() {
 	r := routers.InitRouter()
 
 	go func() {
+		if FileStore == "" || SaveInterval <= 0 {
+			return
+		}
+
 		ticker := time.NewTicker(SaveInterval)
 		defer ticker.Stop()
 
 		for range ticker.C {
-			switch DBConn {
-			case "":
-				if err := s.ToFile(FileStore); err != nil {
-					log.Fatal("Error saving metrics", zap.Error(err))
-				}
-				log.Debug("Metrics saved to file")
-			default:
-				if FileStore == "" || SaveInterval <= 0 {
-					return
-				}
-				if err := db.ToDatabase(s); err != nil {
-					log.Error("Error saving metrics to Database", zap.Error(err))
-				}
-				log.Debug("Metrics saved to DB")
+			if err := db.ToDatabase(s); err != nil {
+				log.Error("Error saving metrics to Database", zap.Error(err))
 			}
+			log.Debug("Metrics saved to DB")
+			//switch DBConn {
+			//case "":
+			//	if err := s.ToFile(FileStore); err != nil {
+			//		log.Fatal("Error saving metrics", zap.Error(err))
+			//	}
+			//	log.Debug("Metrics saved to file")
+			//default:
+			//	if FileStore == "" || SaveInterval <= 0 {
+			//		return
+			//	}
+			//	if err := db.ToDatabase(s); err != nil {
+			//		log.Error("Error saving metrics to Database", zap.Error(err))
+			//	}
+			//	log.Debug("Metrics saved to DB")
+			//}
 		}
 	}()
 
