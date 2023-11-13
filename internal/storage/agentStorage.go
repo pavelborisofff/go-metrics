@@ -3,12 +3,13 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/pavelborisofff/go-metrics/internal/gzip"
-	"github.com/pavelborisofff/go-metrics/internal/logger"
 	"go.uber.org/zap"
 	"math/rand"
 	"net/http"
 	"runtime"
+
+	"github.com/pavelborisofff/go-metrics/internal/gzip"
+	"github.com/pavelborisofff/go-metrics/internal/logger"
 )
 
 var (

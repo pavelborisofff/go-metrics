@@ -6,6 +6,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"github.com/pavelborisofff/go-metrics/internal/db"
 	"html/template"
 	"io"
 	"net/http"
@@ -40,13 +41,13 @@ func MainHandler(res http.ResponseWriter, _ *http.Request) {
 }
 
 func PingHandler(res http.ResponseWriter, _ *http.Request) {
-	if storage.DB == nil {
+	if db.DB == nil {
 		log.Debug("DB is nil")
 		http.Error(res, "DB is nil", http.StatusInternalServerError)
 		return
 	}
 
-	if err := storage.DB.Ping(context.Background()); err != nil {
+	if err := db.DB.Ping(context.Background()); err != nil {
 		http.Error(res, "Error connecting to DB", http.StatusInternalServerError)
 		return
 	}
