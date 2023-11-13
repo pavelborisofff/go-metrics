@@ -17,13 +17,13 @@ import (
 
 const (
 	serverAddrDef   = "localhost:8080"
-	saveIntervalDef = 300
+	saveIntervalDef = 2
 	fileStoreDef    = "/tmp/metrics-db.json"
 	restoreDef      = true
 	// TODO: remove this
-	dbConnDef = "postgres://postgres:password@localhost:15432/praktikum?sslmode=disable"
+	//dbConnDef = "postgres://postgres:password@localhost:15432/praktikum?sslmode=disable"
 	//dbConnDef = "host=localhost port=15432 user=postgres password=password dbname=praktikum sslmode=disable"
-	//dbConnDef = ""
+	dbConnDef = ""
 )
 
 var (
@@ -109,28 +109,37 @@ func main() {
 	s := storage.NewMemStorage()
 	ParseFlags()
 
-	if Restore {
-		if err := s.FromFile(FileStore); err != nil {
-			log.Fatal("Error restore metrics", zap.Error(err))
+	switch DBConn {
+	case "":
+		if Restore {
+			if err := s.FromFile(FileStore); err != nil {
+				log.Fatal("Error restore metrics", zap.Error(err))
+			}
+			log.Info("Metrics restored from file")
 		}
-		log.Info("Metrics restored")
-	}
-
-	if DBConn != "" {
+	default:
 		if err := db.InitDB(DBConn); err != nil {
 			log.Fatal("Error init DB", zap.Error(err))
+			DBConn = ""
 		}
 		defer db.DB.Close(context.Background())
 
 		if err := db.CreateTables(); err != nil {
 			log.Error("Error create tables", zap.Error(err))
 		}
+
+		log.Debug("DB init")
+
+		if Restore {
+			if err := db.FromDatabase(s); err != nil {
+				log.Fatal("Error restore metrics", zap.Error(err))
+			}
+			log.Info("Metrics restored from DB")
+		}
 	}
 
-	r := routers.InitRouter()
-
 	go func() {
-		if FileStore == "" || SaveInterval <= 0 {
+		if SaveInterval <= 0 {
 			return
 		}
 
@@ -138,27 +147,24 @@ func main() {
 		defer ticker.Stop()
 
 		for range ticker.C {
-			if err := db.ToDatabase(s); err != nil {
-				log.Error("Error saving metrics to Database", zap.Error(err))
+			switch DBConn {
+			case "":
+				if FileStore == "" {
+					return
+				}
+				if err := s.ToFile(FileStore); err != nil {
+					log.Fatal("Error saving metrics", zap.Error(err))
+				}
+				log.Debug("Metrics saved to file")
+			default:
+				if err := db.ToDatabase(s); err != nil {
+					log.Error("Error saving metrics to Database", zap.Error(err))
+				}
+				log.Debug("Metrics saved to DB")
 			}
-			log.Debug("Metrics saved to DB")
-			//switch DBConn {
-			//case "":
-			//	if err := s.ToFile(FileStore); err != nil {
-			//		log.Fatal("Error saving metrics", zap.Error(err))
-			//	}
-			//	log.Debug("Metrics saved to file")
-			//default:
-			//	if FileStore == "" || SaveInterval <= 0 {
-			//		return
-			//	}
-			//	if err := db.ToDatabase(s); err != nil {
-			//		log.Error("Error saving metrics to Database", zap.Error(err))
-			//	}
-			//	log.Debug("Metrics saved to DB")
-			//}
 		}
 	}()
 
+	r := routers.InitRouter()
 	log.Fatal("Server error", zap.Error(http.ListenAndServe(ServerAddr, r)))
 }

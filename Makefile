@@ -28,6 +28,18 @@ go-run-tests:
 git-checkout:
 	git checkout -b $(BRANCH)
 
+.PHONY: go-run-autotests-9
+go-run-autotests-9:
+	go build -o cmd/server/server cmd/server/main.go
+	go build -o cmd/agent/agent cmd/agent/main.go
+	metricstest-darwin-arm64 -test.v -test.run=^TestIteration9$$ -agent-binary-path=cmd/agent/agent -binary-path=cmd/server/server -server-port=12345 -source-path=. -file-storage-path=TEMP_FILE
+
+.PHONY: go-run-autotests-10
+go-run-autotests-10:
+	go build -o cmd/server/server cmd/server/main.go
+	go build -o cmd/agent/agent cmd/agent/main.go
+	metricstest-darwin-arm64 -test.v -test.run=^TestIteration10[AB]$$ -agent-binary-path=cmd/agent/agent -binary-path=cmd/server/server -server-port=12345 -source-path=. -file-storage-path=TEMP_FILE -database-dsn='postgres://postgres:password@localhost:15432/praktikum?sslmode=disable'
+
 .PHONY: go-run-autotests
 go-run-autotests:
 	go build -o cmd/server/server cmd/server/main.go
