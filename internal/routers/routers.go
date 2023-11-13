@@ -19,6 +19,7 @@ func InitRouter() *chi.Mux {
 	r.Post("/update/", handlers.UpdateJSONHandler)
 	r.Post("/value/", handlers.ValueJSONHandler)
 	r.Get("/metrics", handlers.MetricsHandler)
+	r.Get("/ping", handlers.PingHandler)
 
 	return r
 }

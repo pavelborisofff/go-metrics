@@ -2,9 +2,11 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"github.com/pavelborisofff/go-metrics/internal/db"
 	"html/template"
 	"io"
 	"net/http"
@@ -34,7 +36,24 @@ func MainHandler(res http.ResponseWriter, _ *http.Request) {
 	if err != nil {
 		log.Error("Error execute template", zap.Error(err))
 		http.Error(res, "Error execute template", http.StatusInternalServerError)
+		return
 	}
+}
+
+func PingHandler(res http.ResponseWriter, _ *http.Request) {
+	if db.DB == nil {
+		log.Debug("DB is nil")
+		http.Error(res, "DB is nil", http.StatusInternalServerError)
+		return
+	}
+
+	if err := db.DB.Ping(context.Background()); err != nil {
+		http.Error(res, "Error connecting to DB", http.StatusInternalServerError)
+		return
+	}
+
+	res.WriteHeader(http.StatusOK)
+	res.Write([]byte("Ping successful"))
 }
 
 func UpdateHandler(res http.ResponseWriter, req *http.Request) {

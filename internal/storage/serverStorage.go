@@ -28,20 +28,20 @@ const (
 )
 
 var (
-	instance *MemStorage
-	once     sync.Once
+	ms       *MemStorage
+	msInited sync.Once
 )
 
 func NewMemStorage() *MemStorage {
-	once.Do(func() {
-		instance = &MemStorage{
+	msInited.Do(func() {
+		ms = &MemStorage{
 			CounterStorage: make(map[string]Counter),
 			GaugeStorage:   make(map[string]Gauge),
 			mu:             &sync.Mutex{},
 		}
 	})
 
-	return instance
+	return ms
 }
 
 func (s *MemStorage) UpdateGauge(name string, value Gauge) {
