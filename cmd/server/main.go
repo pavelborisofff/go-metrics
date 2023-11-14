@@ -20,10 +20,7 @@ const (
 	saveIntervalDef = 2
 	fileStoreDef    = "/tmp/metrics-db.json"
 	restoreDef      = true
-	// TODO: remove this
-	//dbConnDef = "postgres://postgres:password@localhost:15432/praktikum?sslmode=disable"
-	//dbConnDef = "host=localhost port=15432 user=postgres password=password dbname=praktikum sslmode=disable"
-	dbConnDef = ""
+	dbConnDef       = ""
 )
 
 var (
@@ -98,8 +95,6 @@ func ParseFlags() {
 		zap.Duration("Save interval", SaveInterval),
 		zap.String("File store", FileStore),
 		zap.Bool("Restore", Restore),
-		// TODO: remove this
-		zap.String("Database connection", DBConn),
 	)
 }
 
