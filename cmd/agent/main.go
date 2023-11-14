@@ -94,6 +94,11 @@ func main() {
 			if err != nil {
 				log.Error("Error sending metrics", zap.Error(err))
 			}
+
+			err = s.BatchSend(serverAddr)
+			if err != nil {
+				log.Error("Error sending batch metrics", zap.Error(err))
+			}
 		}
 	}
 }
