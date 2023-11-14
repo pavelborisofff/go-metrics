@@ -151,6 +151,59 @@ func UpdateJSONHandler(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func BatchUpdate(res http.ResponseWriter, req *http.Request) {
+	var m []storage.Metrics
+	var b bytes.Buffer
+
+	_, err := b.ReadFrom(req.Body)
+	if err != nil {
+		log.Warn("Error read body", zap.Error(err))
+		http.Error(res, "Error read body", http.StatusUnsupportedMediaType)
+		return
+	}
+
+	err = json.Unmarshal(b.Bytes(), &m)
+	if err != nil {
+		log.Warn("Error unmarshal", zap.Error(err))
+		http.Error(res, "Error unmarshal", http.StatusBadRequest)
+		return
+	}
+
+	for _, v := range m {
+		switch v.MType {
+		case storage.CounterType:
+			if v.Delta == nil {
+				msg := fmt.Sprintf("Bad Counter's value: %s", v.ID)
+				log.Debug(msg)
+				http.Error(res, msg, http.StatusBadRequest)
+				return
+			}
+			s.IncrementCounter(v.ID, storage.Counter(*v.Delta))
+			msg := fmt.Sprintf("Counter %s shanged to %d", v.ID, *v.Delta)
+			log.Debug(msg)
+			res.WriteHeader(http.StatusOK)
+
+		case storage.GaugeType:
+			if v.Value == nil {
+				msg := fmt.Sprintf("Bad Gauge's value: %s", v.ID)
+				log.Warn(msg)
+				http.Error(res, msg, http.StatusBadRequest)
+				return
+			}
+			s.UpdateGauge(v.ID, storage.Gauge(*v.Value))
+			msg := fmt.Sprintf("Gauge %s updated to %f", v.ID, *v.Value)
+			log.Debug(msg)
+			res.WriteHeader(http.StatusOK)
+
+		default:
+			msg := fmt.Sprintf("Bad metric's type: %s", v.MType)
+			log.Warn(msg)
+			http.Error(res, msg, http.StatusBadRequest)
+			return
+		}
+	}
+}
+
 func MetricsHandler(res http.ResponseWriter, _ *http.Request) {
 	data, err := json.Marshal(s)
 	if err != nil {
