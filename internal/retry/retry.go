@@ -12,7 +12,6 @@ import (
 
 func Request(c *http.Client, w *http.Request) (*http.Response, error) {
 	var r *http.Response
-	defer r.Body.Close()
 	var delay uint = 1
 	log := logger.GetLogger()
 
@@ -22,8 +21,9 @@ func Request(c *http.Client, w *http.Request) (*http.Response, error) {
 			r, err = c.Do(w)
 			if err != nil {
 				log.Error("Error do request, retry")
+			} else {
+				defer r.Body.Close()
 			}
-			defer r.Body.Close()
 			return err
 		},
 		retry.Attempts(3),
@@ -33,8 +33,6 @@ func Request(c *http.Client, w *http.Request) (*http.Response, error) {
 			log.Info("Retry request", zap.Uint("attempt", n), zap.Uint("delay", curDelay))
 		}),
 	)
-
-	defer r.Body.Close()
 
 	if err != nil {
 		log.Error("Error retry request", zap.Error(err))
