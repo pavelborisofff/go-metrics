@@ -12,7 +12,7 @@ type Counter uint64
 type MemStorage struct {
 	CounterStorage map[string]Counter `json:"counter"`
 	GaugeStorage   map[string]Gauge   `json:"gauge"`
-	mu             *sync.Mutex
+	Mu             *sync.Mutex
 }
 
 type Metrics struct {
@@ -37,7 +37,7 @@ func NewMemStorage() *MemStorage {
 		ms = &MemStorage{
 			CounterStorage: make(map[string]Counter),
 			GaugeStorage:   make(map[string]Gauge),
-			mu:             &sync.Mutex{},
+			Mu:             &sync.Mutex{},
 		}
 	})
 
@@ -45,15 +45,15 @@ func NewMemStorage() *MemStorage {
 }
 
 func (s *MemStorage) UpdateGauge(name string, value Gauge) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
 
 	s.GaugeStorage[name] = value
 }
 
 func (s *MemStorage) IncrementCounter(name string, value Counter) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
 
 	s.CounterStorage[name] += value
 }

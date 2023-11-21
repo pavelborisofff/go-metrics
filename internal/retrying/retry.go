@@ -1,4 +1,4 @@
-package retry
+package retrying
 
 import (
 	"net/http"
@@ -10,10 +10,11 @@ import (
 	"github.com/pavelborisofff/go-metrics/internal/logger"
 )
 
+var log = logger.GetLogger()
+
 func Request(c *http.Client, w *http.Request) (*http.Response, error) {
 	var r *http.Response
 	var delay uint = 1
-	log := logger.GetLogger()
 
 	err := retry.Do(
 		func() error {
@@ -30,7 +31,7 @@ func Request(c *http.Client, w *http.Request) (*http.Response, error) {
 		retry.OnRetry(func(n uint, err error) {
 			curDelay := delay + 2*n
 			time.Sleep(time.Duration(curDelay) * time.Second)
-			log.Info("Retry request", zap.Uint("attempt", n), zap.Uint("delay", curDelay))
+			log.Info("Retry request", zap.Error(err), zap.Uint("attempt", n), zap.Uint("delay", curDelay))
 		}),
 	)
 
@@ -40,4 +41,20 @@ func Request(c *http.Client, w *http.Request) (*http.Response, error) {
 	}
 
 	return r, nil
+}
+
+func DBOperation(dbOperation func() error) error {
+	var delay uint = 1
+
+	err := retry.Do(
+		dbOperation,
+		retry.Attempts(3),
+		retry.OnRetry(func(n uint, err error) {
+			curDelay := delay + 2*n
+			time.Sleep(time.Duration(curDelay) * time.Second)
+			log.Warn("Retrying DB operation", zap.Error(err), zap.Uint("attempt", n), zap.Uint("delay", curDelay))
+		}),
+	)
+
+	return err
 }

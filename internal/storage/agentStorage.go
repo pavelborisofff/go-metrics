@@ -11,7 +11,7 @@ import (
 
 	"github.com/pavelborisofff/go-metrics/internal/gzip"
 	"github.com/pavelborisofff/go-metrics/internal/logger"
-	"github.com/pavelborisofff/go-metrics/internal/retry"
+	"github.com/pavelborisofff/go-metrics/internal/retrying"
 )
 
 var (
@@ -133,7 +133,7 @@ func (s *AgentStorage) batchSendMetrics(m []Metrics, serverAddr string) error {
 	req.Header.Set("Content-Encoding", "gzip")
 
 	c := &http.Client{}
-	resp, err := retry.Request(c, req)
+	resp, err := retrying.Request(c, req)
 	if err != nil {
 		log.Error("Error sending batch request JSON", zap.Error(err))
 		return err
@@ -201,7 +201,7 @@ func (s *AgentStorage) SendJSONMetric(m Metrics, serverAddr string) error {
 	req.Header.Set("Content-Encoding", "gzip")
 
 	c := &http.Client{}
-	res, err := retry.Request(c, req)
+	res, err := retrying.Request(c, req)
 	if err != nil {
 		log.Error("Failed to send metric", zap.Error(err))
 		return err
