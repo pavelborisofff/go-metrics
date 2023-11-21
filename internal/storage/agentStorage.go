@@ -3,13 +3,15 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
-	"go.uber.org/zap"
 	"math/rand"
 	"net/http"
 	"runtime"
 
+	"go.uber.org/zap"
+
 	"github.com/pavelborisofff/go-metrics/internal/gzip"
 	"github.com/pavelborisofff/go-metrics/internal/logger"
+	"github.com/pavelborisofff/go-metrics/internal/retry"
 )
 
 var (
@@ -131,7 +133,7 @@ func (s *AgentStorage) batchSendMetrics(m []Metrics, serverAddr string) error {
 	req.Header.Set("Content-Encoding", "gzip")
 
 	c := &http.Client{}
-	resp, err := c.Do(req)
+	resp, err := retry.Request(c, req)
 	if err != nil {
 		log.Error("Error sending batch request JSON", zap.Error(err))
 		return err
@@ -199,7 +201,7 @@ func (s *AgentStorage) SendJSONMetric(m Metrics, serverAddr string) error {
 	req.Header.Set("Content-Encoding", "gzip")
 
 	c := &http.Client{}
-	res, err := c.Do(req)
+	res, err := retry.Request(c, req)
 	if err != nil {
 		log.Error("Failed to send metric", zap.Error(err))
 		return err
