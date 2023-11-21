@@ -45,9 +45,8 @@ func loadAgentConfig() (*Config, error) {
 	fset.IntVar(&_cfg.Agent.ReportInterval, "r", _cfg.Agent.ReportInterval, "report interval")
 	err = fset.Parse(os.Args[1:])
 	if err != nil {
-		msg := "Error parsing flags"
-		log.Error(msg, zap.Error(err))
-		return nil, fmt.Errorf(msg, err)
+		log.Error("Error parsing flags", zap.Error(err))
+		return nil, err
 	}
 
 	_cfg.ServerAddr = fmt.Sprintf("http://%s", _cfg.ServerAddr)

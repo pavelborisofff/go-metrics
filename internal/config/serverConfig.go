@@ -2,7 +2,6 @@ package config
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"sync"
 
@@ -47,9 +46,8 @@ func loadServerConfig() (*Config, error) {
 	fset.StringVar(&_cfg.Server.DBConn, "d", _cfg.Server.DBConn, "database connection string")
 	err = fset.Parse(os.Args[1:])
 	if err != nil {
-		msg := "Error parsing flags"
-		log.Error(msg, zap.Error(err))
-		return nil, fmt.Errorf(msg, err)
+		log.Error("Error parsing flags", zap.Error(err))
+		return nil, err
 	}
 
 	return &_cfg, nil
