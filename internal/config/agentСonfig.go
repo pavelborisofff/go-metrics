@@ -45,7 +45,7 @@ func loadAgentConfig() (*Config, error) {
 	fset.IntVar(&_cfg.Agent.ReportInterval, "r", _cfg.Agent.ReportInterval, "report interval")
 	err = fset.Parse(os.Args[1:])
 	if err != nil {
-		msg := fmt.Sprintf("Error parsing flags")
+		msg := "Error parsing flags"
 		log.Error(msg, zap.Error(err))
 		return nil, fmt.Errorf(msg, err)
 	}

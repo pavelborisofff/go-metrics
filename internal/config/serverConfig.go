@@ -47,7 +47,7 @@ func loadServerConfig() (*Config, error) {
 	fset.StringVar(&_cfg.Server.DBConn, "d", _cfg.Server.DBConn, "database connection string")
 	err = fset.Parse(os.Args[1:])
 	if err != nil {
-		msg := fmt.Sprintf("Error parsing flags")
+		msg := "Error parsing flags"
 		log.Error(msg, zap.Error(err))
 		return nil, fmt.Errorf(msg, err)
 	}
