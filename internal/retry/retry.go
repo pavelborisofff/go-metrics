@@ -12,6 +12,7 @@ import (
 
 func Request(c *http.Client, w *http.Request) (*http.Response, error) {
 	var r *http.Response
+	defer r.Body.Close()
 	var delay uint = 1
 	log := logger.GetLogger()
 
