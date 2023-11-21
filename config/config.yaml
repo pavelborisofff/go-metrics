@@ -5,4 +5,4 @@ server:
     restore: true
 agent:
     poll_interval: 2
-    report_interval: 2
+    report_interval: 10

@@ -28,11 +28,17 @@ go-run-tests:
 git-checkout:
 	git checkout -b $(BRANCH)
 
-.PHONY: go-run-autotests-9
-go-run-autotests-9:
+.PHONY: go-run-autotests-2
+go-run-autotests-2:
 	go build -o cmd/server/server cmd/server/main.go
 	go build -o cmd/agent/agent cmd/agent/main.go
-	metricstest-darwin-arm64 -test.v -test.run=^TestIteration9$$ -agent-binary-path=cmd/agent/agent -binary-path=cmd/server/server -server-port=12345 -source-path=. -file-storage-path=TEMP_FILE
+	metricstest-darwin-arm64 -test.v -test.run=^TestIteration2[AB]*$$ -source-path=. -agent-binary-path=cmd/agent/agent
+
+.PHONY: go-run-autotests-3
+go-run-autotests-3:
+	go build -o cmd/server/server cmd/server/main.go
+	go build -o cmd/agent/agent cmd/agent/main.go
+	metricstest-darwin-arm64 -test.v -test.run=^TestIteration3[AB]*$$ -source-path=. -agent-binary-path=cmd/agent/agent -binary-path=cmd/server/server
 
 .PHONY: go-run-autotests-10
 go-run-autotests-10:

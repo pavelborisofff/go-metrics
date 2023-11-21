@@ -26,10 +26,15 @@ func GetAgentConfig() (*Config, error) {
 func loadAgentConfig() (*Config, error) {
 	var _cfg Config
 
-	log.Info("Loading default config from file", zap.String("file", envFile))
-	err := cleanenv.ReadConfig(envFile, &_cfg)
+	log.Info("Loading config from flags")
+	fset := flag.NewFlagSet("flags", flag.ContinueOnError)
+	fset.StringVar(&_cfg.ServerAddr, "a", _cfg.ServerAddr, "address")
+	fset.IntVar(&_cfg.Agent.PollInterval, "p", _cfg.Agent.PollInterval, "poll interval")
+	fset.IntVar(&_cfg.Agent.ReportInterval, "r", _cfg.Agent.ReportInterval, "report interval")
+	err := fset.Parse(os.Args[1:])
 	if err != nil {
-		log.Warn("Can't load config from file", zap.Error(err))
+		log.Error("Error parsing flags", zap.Error(err))
+		return nil, err
 	}
 
 	log.Info("Loading config from environment")
@@ -38,15 +43,10 @@ func loadAgentConfig() (*Config, error) {
 		log.Warn("Can't load config from environment", zap.Error(err))
 	}
 
-	log.Info("Loading config from flags")
-	fset := flag.NewFlagSet("flags", flag.ContinueOnError)
-	fset.StringVar(&_cfg.ServerAddr, "a", _cfg.ServerAddr, "address")
-	fset.IntVar(&_cfg.Agent.PollInterval, "p", _cfg.Agent.PollInterval, "poll interval")
-	fset.IntVar(&_cfg.Agent.ReportInterval, "r", _cfg.Agent.ReportInterval, "report interval")
-	err = fset.Parse(os.Args[1:])
+	log.Info("Loading default config from file", zap.String("file", envFile))
+	err = cleanenv.ReadConfig(envFile, &_cfg)
 	if err != nil {
-		log.Error("Error parsing flags", zap.Error(err))
-		return nil, err
+		log.Warn("Can't load config from file", zap.Error(err))
 	}
 
 	_cfg.ServerAddr = fmt.Sprintf("http://%s", _cfg.ServerAddr)

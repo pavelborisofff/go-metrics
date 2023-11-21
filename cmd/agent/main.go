@@ -18,7 +18,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Error load config", zap.Error(err))
 	}
-	log.Debug("Config", zap.Any("config", cfg))
+	log.Debug("Agent Config", zap.Any("config", cfg))
 
 	pollTicker := time.NewTicker(time.Duration(cfg.Agent.PollInterval) * time.Second)
 	defer pollTicker.Stop()

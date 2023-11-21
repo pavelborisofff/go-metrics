@@ -12,7 +12,7 @@ type Counter uint64
 type MemStorage struct {
 	CounterStorage map[string]Counter `json:"counter"`
 	GaugeStorage   map[string]Gauge   `json:"gauge"`
-	Mu             *sync.Mutex
+	Mu             *sync.Mutex        `json:"-"`
 }
 
 type Metrics struct {

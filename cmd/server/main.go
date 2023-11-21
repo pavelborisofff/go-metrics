@@ -23,6 +23,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Error load config", zap.Error(err))
 	}
+	log.Debug("Config loaded", zap.Any("config", cfg))
 
 	switch cfg.Server.DBConn {
 	case "":
