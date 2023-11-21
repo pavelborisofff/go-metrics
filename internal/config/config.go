@@ -17,6 +17,6 @@ type Config struct {
 	} `yaml:"server"`
 	Agent struct {
 		PollInterval   int `yaml:"poll_interval" env:"POLL_INTERVAL"`
-		ReportInterval int `yaml:"report_interval" env:"REPORT_INTERVAL"`
+		ReportInterval int `yaml:"report_interval" env:"REPORT_INTERVAL,"`
 	} `yaml:"agent"`
 }

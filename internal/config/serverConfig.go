@@ -24,6 +24,7 @@ func GetServerConfig() (*Config, error) {
 
 func loadServerConfig() (*Config, error) {
 	var _cfg Config
+	var defCfg Config
 
 	log.Info("Loading config from flags")
 	fset := flag.NewFlagSet("flags", flag.ContinueOnError)
@@ -45,9 +46,25 @@ func loadServerConfig() (*Config, error) {
 	}
 
 	log.Info("Loading default config from file", zap.String("file", envFile))
-	err = cleanenv.ReadConfig(envFile, &_cfg)
+	err = cleanenv.ReadConfig(envFile, &defCfg)
 	if err != nil {
 		log.Warn("Can't load config from file", zap.Error(err))
+	}
+
+	if _cfg.ServerAddr == "" {
+		_cfg.ServerAddr = defCfg.ServerAddr
+	}
+	if _cfg.Server.SaveInterval == 0 {
+		_cfg.Server.SaveInterval = defCfg.Server.SaveInterval
+	}
+	if _cfg.Server.FileStore == "" {
+		_cfg.Server.FileStore = defCfg.Server.FileStore
+	}
+	if _cfg.Server.Restore == false {
+		_cfg.Server.Restore = defCfg.Server.Restore
+	}
+	if _cfg.Server.DBConn == "" {
+		_cfg.Server.DBConn = defCfg.Server.DBConn
 	}
 
 	return &_cfg, nil

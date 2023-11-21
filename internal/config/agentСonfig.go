@@ -25,6 +25,7 @@ func GetAgentConfig() (*Config, error) {
 
 func loadAgentConfig() (*Config, error) {
 	var _cfg Config
+	var defCfg Config
 
 	log.Info("Loading config from flags")
 	fset := flag.NewFlagSet("flags", flag.ContinueOnError)
@@ -44,9 +45,19 @@ func loadAgentConfig() (*Config, error) {
 	}
 
 	log.Info("Loading default config from file", zap.String("file", envFile))
-	err = cleanenv.ReadConfig(envFile, &_cfg)
+	err = cleanenv.ReadConfig(envFile, &defCfg)
 	if err != nil {
 		log.Warn("Can't load config from file", zap.Error(err))
+	}
+
+	if _cfg.ServerAddr == "" {
+		_cfg.ServerAddr = defCfg.ServerAddr
+	}
+	if _cfg.Agent.PollInterval == 0 {
+		_cfg.Agent.PollInterval = defCfg.Agent.PollInterval
+	}
+	if _cfg.Agent.ReportInterval == 0 {
+		_cfg.Agent.ReportInterval = defCfg.Agent.ReportInterval
 	}
 
 	_cfg.ServerAddr = fmt.Sprintf("http://%s", _cfg.ServerAddr)
