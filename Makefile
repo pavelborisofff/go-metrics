@@ -6,19 +6,19 @@ go-init:
 
 .PHONY: go-run-server
 go-run-server:
-	cd ./cmd/server && go run .
+	go run cmd/server/main.go
 
 .PHONY: go-run-server-race
 go-run-server-race:
-	cd ./cmd/server && go run -race .
+	go run -race cmd/server/main.go
 
 .PHONY: go-run-agent
 go-run-agent:
-	cd ./cmd/agent && go run .
+	go run cmd/agent/main.go
 
 .PHONY: go-run-agent-race
 go-run-agent-race:
-	cd ./cmd/agent && go run -race .
+	go run -race cmd/agent/main.go
 
 .PHONY: go-run-tests
 go-run-tests:
