@@ -22,6 +22,7 @@ func Request(c *http.Client, w *http.Request) (*http.Response, error) {
 			if err != nil {
 				log.Error("Error do request, retry")
 			}
+			defer r.Body.Close()
 			return err
 		},
 		retry.Attempts(3),
@@ -36,7 +37,6 @@ func Request(c *http.Client, w *http.Request) (*http.Response, error) {
 		log.Error("Error retry request", zap.Error(err))
 		return nil, err
 	}
-	defer r.Body.Close()
 
 	return r, nil
 }
