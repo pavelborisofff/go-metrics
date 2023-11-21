@@ -1,88 +1,28 @@
 package main
 
 import (
-	"flag"
-	"fmt"
 	"go.uber.org/zap"
-	"os"
-	"strconv"
 	"time"
 
+	"github.com/pavelborisofff/go-metrics/internal/config"
 	"github.com/pavelborisofff/go-metrics/internal/logger"
 	"github.com/pavelborisofff/go-metrics/internal/storage"
 )
 
-const (
-	pollIntervalDef   = 2
-	reportIntervalDef = 10
-	serverAddrDef     = "localhost:8080"
-)
-
-var (
-	pollInterval   time.Duration
-	reportInterval time.Duration
-	serverAddr     string
-	log            = logger.GetLogger()
-)
-
-func ParseFlags() {
-	var (
-		err                error
-		serverAddrFlag     string
-		pollIntervalFlag   int
-		reportIntervalFlag int
-	)
-
-	flag.StringVar(&serverAddrFlag, "a", serverAddrDef, "Server address")
-	flag.IntVar(&pollIntervalFlag, "p", pollIntervalDef, "Poll interval")
-	flag.IntVar(&reportIntervalFlag, "r", reportIntervalDef, "Report interval")
-	flag.Parse()
-
-	serverAddrEnv, exists := os.LookupEnv("ADDRESS")
-	if exists {
-		serverAddrFlag = serverAddrEnv
-	}
-	serverAddr = fmt.Sprintf("http://%s", serverAddrFlag)
-
-	pollIntervalEnv, exists := os.LookupEnv("POLL_INTERVAL")
-	if exists {
-		pollIntervalFlag, err = strconv.Atoi(pollIntervalEnv)
-		if err != nil {
-			log.Fatal("Error parsing POLL_INTERVAL", zap.Error(err))
-		}
-	}
-	pollInterval = time.Duration(pollIntervalFlag) * time.Second
-
-	if pollInterval < time.Duration(1)*time.Second {
-		log.Fatal("Poll interval must be >= 1s")
-	}
-
-	reportIntervalEnv, exists := os.LookupEnv("REPORT_INTERVAL")
-	if exists {
-		reportIntervalFlag, err = strconv.Atoi(reportIntervalEnv)
-		if err != nil {
-			log.Fatal("Error parsing REPORT_INTERVAL", zap.Error(err))
-		}
-	}
-	reportInterval = time.Duration(reportIntervalFlag) * time.Second
-
-	if reportInterval < time.Duration(1)*time.Second {
-		log.Fatal("Report interval must be >= 1s")
-	}
-
-	msg := fmt.Sprintf("\nServer address: %s\nPoll interval: %v\nReport interval: %v", serverAddr, pollInterval, reportInterval)
-	log.Info(msg)
-}
-
 func main() {
+	log := logger.GetLogger()
 	defer log.Sync()
 
 	s := storage.NewAgentStorage()
-	ParseFlags()
+	cfg, err := config.GetAgentConfig()
+	if err != nil {
+		log.Fatal("Error load config", zap.Error(err))
+	}
+	log.Debug("Config", zap.Any("config", cfg))
 
-	pollTicker := time.NewTicker(pollInterval)
+	pollTicker := time.NewTicker(time.Duration(cfg.Agent.PollInterval) * time.Second)
 	defer pollTicker.Stop()
-	reportTicker := time.NewTicker(reportInterval)
+	reportTicker := time.NewTicker(time.Duration(cfg.Agent.ReportInterval) * time.Second)
 	defer reportTicker.Stop()
 
 	for {
@@ -90,12 +30,12 @@ func main() {
 		case <-pollTicker.C:
 			s.UpdateMetrics()
 		case <-reportTicker.C:
-			err := s.SendJSONMetrics(serverAddr)
+			err = s.SendJSONMetrics(cfg.ServerAddr)
 			if err != nil {
 				log.Error("Error sending metrics", zap.Error(err))
 			}
 
-			err = s.BatchSend(serverAddr)
+			err = s.BatchSend(cfg.ServerAddr)
 			if err != nil {
 				log.Error("Error sending batch metrics", zap.Error(err))
 			}
