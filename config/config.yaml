@@ -3,7 +3,6 @@ server:
     save_interval: 2
     file_store: "/tmp/metrics-db.json"
     restore: true
-    db_conn: postgres://postgres:password@localhost:15432/praktikum?sslmode=disable
 agent:
     poll_interval: 2
     report_interval: 10
