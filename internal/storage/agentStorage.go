@@ -3,16 +3,20 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/pavelborisofff/go-metrics/internal/gzip"
-	"github.com/pavelborisofff/go-metrics/internal/logger"
-	"go.uber.org/zap"
 	"math/rand"
 	"net/http"
 	"runtime"
+
+	"go.uber.org/zap"
+
+	"github.com/pavelborisofff/go-metrics/internal/gzip"
+	"github.com/pavelborisofff/go-metrics/internal/logger"
+	"github.com/pavelborisofff/go-metrics/internal/retrying"
 )
 
 var (
-	log = logger.GetLogger()
+	log    = logger.GetLogger()
+	client = &http.Client{}
 )
 
 type AgentStorage struct {
@@ -107,6 +111,73 @@ func (s *AgentStorage) SendJSONMetrics(serverAddr string) error {
 	return nil
 }
 
+func (s *AgentStorage) batchSendMetrics(m []Metrics, serverAddr string) error {
+	data, err := json.Marshal(m)
+	if err != nil {
+		log.Error("Error marshaling JSON batch data", zap.Error(err))
+		return err
+	}
+
+	compressedData, err := gzip.CompressData(data)
+	if err != nil {
+		log.Error("Error compressing JSON batch data", zap.Error(err))
+		return err
+	}
+
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/updates/", serverAddr), compressedData)
+	if err != nil {
+		log.Error("Error creating batch request JSON", zap.Error(err))
+		return err
+	}
+
+	req.Header.Set("Content-Type", "text/plain")
+	req.Header.Set("Content-Encoding", "gzip")
+
+	resp, err := retrying.Request(client, req)
+	if err != nil {
+		log.Error("Error sending batch request JSON", zap.Error(err))
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Error("Error sending batch request JSON", zap.String("status", resp.Status))
+		return err
+	}
+
+	log.Info("Batch JSON sent successfully")
+	return nil
+}
+
+func (s *AgentStorage) BatchSend(serverAddr string) error {
+	var m []Metrics
+
+	for k, v := range s.CounterStorage {
+		delta := int64(v)
+		m = append(m, Metrics{
+			ID:    k,
+			MType: CounterType,
+			Delta: &delta,
+		})
+	}
+
+	for k, v := range s.GaugeStorage {
+		value := float64(v)
+		m = append(m, Metrics{
+			ID:    k,
+			MType: GaugeType,
+			Value: &value,
+		})
+	}
+
+	err := s.batchSendMetrics(m, serverAddr)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (s *AgentStorage) SendJSONMetric(m Metrics, serverAddr string) error {
 	data, err := json.Marshal(m)
 	if err != nil {
@@ -129,8 +200,7 @@ func (s *AgentStorage) SendJSONMetric(m Metrics, serverAddr string) error {
 	req.Header.Set("Content-Type", "text/plain")
 	req.Header.Set("Content-Encoding", "gzip")
 
-	c := &http.Client{}
-	res, err := c.Do(req)
+	res, err := retrying.Request(client, req)
 	if err != nil {
 		log.Error("Failed to send metric", zap.Error(err))
 		return err

@@ -17,8 +17,10 @@ func InitRouter() *chi.Mux {
 	r.Post("/update/{metric-type}/{metric-name}/{metric-value}", handlers.UpdateHandler)
 	r.Get("/value/{metric-type}/{metric-name}", handlers.ValueHandler)
 	r.Post("/update/", handlers.UpdateJSONHandler)
+	r.Post("/updates/", handlers.BatchUpdate)
 	r.Post("/value/", handlers.ValueJSONHandler)
 	r.Get("/metrics", handlers.MetricsHandler)
+	r.Get("/ping", handlers.PingHandler)
 
 	return r
 }

@@ -2,9 +2,11 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"github.com/pavelborisofff/go-metrics/internal/db"
 	"html/template"
 	"io"
 	"net/http"
@@ -34,7 +36,24 @@ func MainHandler(res http.ResponseWriter, _ *http.Request) {
 	if err != nil {
 		log.Error("Error execute template", zap.Error(err))
 		http.Error(res, "Error execute template", http.StatusInternalServerError)
+		return
 	}
+}
+
+func PingHandler(res http.ResponseWriter, _ *http.Request) {
+	if db.DB == nil {
+		log.Debug("DB is nil")
+		http.Error(res, "DB is nil", http.StatusInternalServerError)
+		return
+	}
+
+	if err := db.DB.Ping(context.Background()); err != nil {
+		http.Error(res, "Error connecting to DB", http.StatusInternalServerError)
+		return
+	}
+
+	res.WriteHeader(http.StatusOK)
+	res.Write([]byte("Ping successful"))
 }
 
 func UpdateHandler(res http.ResponseWriter, req *http.Request) {
@@ -129,6 +148,58 @@ func UpdateJSONHandler(res http.ResponseWriter, req *http.Request) {
 		log.Debug(msg)
 		http.Error(res, msg, http.StatusBadRequest)
 		return
+	}
+}
+
+func BatchUpdate(res http.ResponseWriter, req *http.Request) {
+	var m []storage.Metrics
+	var b bytes.Buffer
+
+	_, err := b.ReadFrom(req.Body)
+	if err != nil {
+		log.Warn("Error read body", zap.Error(err))
+		http.Error(res, "Error read body", http.StatusUnsupportedMediaType)
+		return
+	}
+
+	err = json.Unmarshal(b.Bytes(), &m)
+	if err != nil {
+		log.Error("Error unmarshal", zap.Error(err))
+		http.Error(res, "Error unmarshal", http.StatusBadRequest)
+		return
+	}
+
+	for _, v := range m {
+		switch v.MType {
+		case storage.CounterType:
+			if v.Delta == nil {
+				msg := fmt.Sprintf("Bad Counter's value: %s", v.ID)
+				log.Debug(msg)
+				http.Error(res, msg, http.StatusBadRequest)
+				return
+			}
+			s.IncrementCounter(v.ID, storage.Counter(*v.Delta))
+			log.Sugar().Debugf("Counter %s changed to %d", v.ID, *v.Delta)
+			res.WriteHeader(http.StatusOK)
+
+		case storage.GaugeType:
+			if v.Value == nil {
+				msg := fmt.Sprintf("Bad Gauge's value: %s", v.ID)
+				log.Warn(msg)
+				http.Error(res, msg, http.StatusBadRequest)
+				return
+			}
+			s.UpdateGauge(v.ID, storage.Gauge(*v.Value))
+			msg := fmt.Sprintf("Gauge %s updated to %f", v.ID, *v.Value)
+			log.Debug(msg)
+			res.WriteHeader(http.StatusOK)
+
+		default:
+			msg := fmt.Sprintf("Bad metric's type: %s", v.MType)
+			log.Warn(msg)
+			http.Error(res, msg, http.StatusBadRequest)
+			return
+		}
 	}
 }
 
