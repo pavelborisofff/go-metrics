@@ -15,7 +15,8 @@ import (
 )
 
 var (
-	log = logger.GetLogger()
+	log    = logger.GetLogger()
+	client = &http.Client{}
 )
 
 type AgentStorage struct {
@@ -132,8 +133,7 @@ func (s *AgentStorage) batchSendMetrics(m []Metrics, serverAddr string) error {
 	req.Header.Set("Content-Type", "text/plain")
 	req.Header.Set("Content-Encoding", "gzip")
 
-	c := &http.Client{}
-	resp, err := retrying.Request(c, req)
+	resp, err := retrying.Request(client, req)
 	if err != nil {
 		log.Error("Error sending batch request JSON", zap.Error(err))
 		return err
@@ -145,7 +145,7 @@ func (s *AgentStorage) batchSendMetrics(m []Metrics, serverAddr string) error {
 		return err
 	}
 
-	log.Info("Batch JSON sent successfully", zap.ByteString("data", data))
+	log.Info("Batch JSON sent successfully")
 	return nil
 }
 
@@ -200,8 +200,7 @@ func (s *AgentStorage) SendJSONMetric(m Metrics, serverAddr string) error {
 	req.Header.Set("Content-Type", "text/plain")
 	req.Header.Set("Content-Encoding", "gzip")
 
-	c := &http.Client{}
-	res, err := retrying.Request(c, req)
+	res, err := retrying.Request(client, req)
 	if err != nil {
 		log.Error("Failed to send metric", zap.Error(err))
 		return err

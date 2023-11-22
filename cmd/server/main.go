@@ -47,7 +47,7 @@ func main() {
 		log.Debug("DB init")
 
 		if cfg.Server.Restore {
-			if err = db.FromDatabase(s); err != nil {
+			if err = db.Read(s); err != nil {
 				log.Fatal("Error restore metrics", zap.Error(err))
 			}
 			log.Info("Metrics restored from DB")
@@ -69,12 +69,13 @@ func main() {
 					return
 				}
 				if err := s.ToFile(cfg.Server.FileStore); err != nil {
-					log.Fatal("Error saving metrics", zap.Error(err))
+					log.Error("Error saving metrics", zap.Error(err))
 				}
 				log.Debug("Metrics saved to file")
 			default:
-				if err := db.ToDatabase(s); err != nil {
+				if err := db.Write(s); err != nil {
 					log.Error("Error saving metrics to Database", zap.Error(err))
+					return
 				}
 				log.Debug("Metrics saved to DB")
 			}

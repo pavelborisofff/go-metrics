@@ -6,8 +6,8 @@ import (
 	"sync"
 )
 
-type Gauge float64
 type Counter uint64
+type Gauge float64
 
 type MemStorage struct {
 	CounterStorage map[string]Counter `json:"counter"`

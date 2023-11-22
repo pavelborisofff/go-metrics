@@ -60,7 +60,7 @@ func loadServerConfig() (*Config, error) {
 	if _cfg.Server.FileStore == "" {
 		_cfg.Server.FileStore = defCfg.Server.FileStore
 	}
-	if _cfg.Server.Restore == false {
+	if !_cfg.Server.Restore {
 		_cfg.Server.Restore = defCfg.Server.Restore
 	}
 	if _cfg.Server.DBConn == "" {

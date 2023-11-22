@@ -1,0 +1,1 @@
+insert into gauges (name, value) values %s on conflict (name) do update set value = excluded.value

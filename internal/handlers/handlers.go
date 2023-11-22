@@ -164,7 +164,7 @@ func BatchUpdate(res http.ResponseWriter, req *http.Request) {
 
 	err = json.Unmarshal(b.Bytes(), &m)
 	if err != nil {
-		log.Warn("Error unmarshal", zap.Error(err))
+		log.Error("Error unmarshal", zap.Error(err))
 		http.Error(res, "Error unmarshal", http.StatusBadRequest)
 		return
 	}
@@ -179,8 +179,7 @@ func BatchUpdate(res http.ResponseWriter, req *http.Request) {
 				return
 			}
 			s.IncrementCounter(v.ID, storage.Counter(*v.Delta))
-			msg := fmt.Sprintf("Counter %s shanged to %d", v.ID, *v.Delta)
-			log.Debug(msg)
+			log.Sugar().Debugf("Counter %s changed to %d", v.ID, *v.Delta)
 			res.WriteHeader(http.StatusOK)
 
 		case storage.GaugeType:
