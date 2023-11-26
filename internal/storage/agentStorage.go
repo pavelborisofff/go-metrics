@@ -137,8 +137,7 @@ func (s *AgentStorage) batchSendMetrics(m []Metrics, serverAddr string) error {
 	req.Header.Set("Content-Encoding", "gzip")
 
 	if cfg.UseHashKey {
-		var hashed string
-		hashed = hash.Make(data, cfg.HashKey)
+		hashed := hash.Make(data, cfg.HashKey)
 		log.Info("Hashed", zap.String("hash", hashed))
 		req.Header.Set("HashSHA256", hashed)
 	}
@@ -211,8 +210,7 @@ func (s *AgentStorage) SendJSONMetric(m Metrics, serverAddr string) error {
 	req.Header.Set("Content-Encoding", "gzip")
 
 	if cfg.UseHashKey {
-		var hashed string
-		hashed = hash.Make(data, cfg.HashKey)
+		hashed := hash.Make(data, cfg.HashKey)
 		log.Info("Hashed", zap.String("hash", hashed))
 		req.Header.Set("HashSHA256", hashed)
 	}
