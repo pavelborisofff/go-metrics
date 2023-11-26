@@ -9,6 +9,8 @@ var (
 
 type Config struct {
 	ServerAddr string `yaml:"server_addr" env:"ADDRESS"`
+	HashKey    string `yaml:"hash_key" env:"KEY"`
+	UseHashKey bool
 	Server     struct {
 		SaveInterval int    `yaml:"save_interval" env:"SAVE_INTERVAL"`
 		FileStore    string `yaml:"file_store" env:"FILE_STORAGE_PATH"`

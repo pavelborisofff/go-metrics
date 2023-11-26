@@ -3,12 +3,14 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/pavelborisofff/go-metrics/internal/hash"
 	"math/rand"
 	"net/http"
 	"runtime"
 
 	"go.uber.org/zap"
 
+	"github.com/pavelborisofff/go-metrics/internal/config"
 	"github.com/pavelborisofff/go-metrics/internal/gzip"
 	"github.com/pavelborisofff/go-metrics/internal/logger"
 	"github.com/pavelborisofff/go-metrics/internal/retrying"
@@ -17,6 +19,7 @@ import (
 var (
 	log    = logger.GetLogger()
 	client = &http.Client{}
+	cfg, _ = config.GetAgentConfig()
 )
 
 type AgentStorage struct {
@@ -133,6 +136,13 @@ func (s *AgentStorage) batchSendMetrics(m []Metrics, serverAddr string) error {
 	req.Header.Set("Content-Type", "text/plain")
 	req.Header.Set("Content-Encoding", "gzip")
 
+	if cfg.UseHashKey {
+		var hashed string
+		hashed = hash.Make(data, cfg.HashKey)
+		log.Info("Hashed", zap.String("hash", hashed))
+		req.Header.Set("HashSHA256", hashed)
+	}
+
 	resp, err := retrying.Request(client, req)
 	if err != nil {
 		log.Error("Error sending batch request JSON", zap.Error(err))
@@ -199,6 +209,13 @@ func (s *AgentStorage) SendJSONMetric(m Metrics, serverAddr string) error {
 
 	req.Header.Set("Content-Type", "text/plain")
 	req.Header.Set("Content-Encoding", "gzip")
+
+	if cfg.UseHashKey {
+		var hashed string
+		hashed = hash.Make(data, cfg.HashKey)
+		log.Info("Hashed", zap.String("hash", hashed))
+		req.Header.Set("HashSHA256", hashed)
+	}
 
 	res, err := retrying.Request(client, req)
 	if err != nil {

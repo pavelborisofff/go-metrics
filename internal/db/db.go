@@ -134,7 +134,7 @@ func Write(s *storage.MemStorage) error {
 
 		// Prepare query for gauges
 		gaugeQuery := strings.Replace(insertGaugeSQL, "%s", strings.Join(gaugeValues, ", "), 1)
-		log.Debug("Gauge query", zap.String("query", gaugeQuery))
+
 		// Execute query for gauges
 		err := retrying.DBOperation(func() error {
 			_, err := DB.Exec(ctx, gaugeQuery, gaugeArgs...)

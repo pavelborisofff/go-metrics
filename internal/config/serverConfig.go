@@ -33,6 +33,8 @@ func loadServerConfig() (*Config, error) {
 	fset.StringVar(&_cfg.Server.FileStore, "f", _cfg.Server.FileStore, "file storage path")
 	fset.BoolVar(&_cfg.Server.Restore, "r", _cfg.Server.Restore, "restore metrics")
 	fset.StringVar(&_cfg.Server.DBConn, "d", _cfg.Server.DBConn, "database connection string")
+	fset.StringVar(&_cfg.HashKey, "k", _cfg.HashKey, "hash key")
+
 	err := fset.Parse(os.Args[1:])
 	if err != nil {
 		log.Error("Error parsing flags", zap.Error(err))
@@ -65,6 +67,9 @@ func loadServerConfig() (*Config, error) {
 	}
 	if _cfg.Server.DBConn == "" {
 		_cfg.Server.DBConn = defCfg.Server.DBConn
+	}
+	if _cfg.HashKey != "" {
+		_cfg.UseHashKey = true
 	}
 
 	return &_cfg, nil

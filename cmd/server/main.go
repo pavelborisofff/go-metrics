@@ -83,5 +83,6 @@ func main() {
 	}()
 
 	r := routers.InitRouter()
+	log.Debug("Staring Server", zap.String("addr", cfg.ServerAddr))
 	log.Fatal("Server error", zap.Error(http.ListenAndServe(cfg.ServerAddr, r)))
 }
