@@ -26,3 +26,5 @@ vendor/
 .DS_Store
 /metricstest-darwin-arm64
 /TEMP_FILE
+/statictest-darwin-arm64
+/race.txt

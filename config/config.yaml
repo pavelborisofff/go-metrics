@@ -1,0 +1,9 @@
+server_addr: "localhost:8080"
+server:
+    save_interval: 2
+    file_store: "/tmp/metrics-db.json"
+    restore: true
+agent:
+    poll_interval: 2
+    report_interval: 3
+    rate_limit: 1

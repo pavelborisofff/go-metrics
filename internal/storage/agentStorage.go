@@ -3,8 +3,11 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/pavelborisofff/go-metrics/internal/config"
 	"github.com/pavelborisofff/go-metrics/internal/gzip"
+	"github.com/pavelborisofff/go-metrics/internal/hash"
 	"github.com/pavelborisofff/go-metrics/internal/logger"
+	"github.com/pavelborisofff/go-metrics/internal/retrying"
 	"go.uber.org/zap"
 	"math/rand"
 	"net/http"
@@ -12,7 +15,9 @@ import (
 )
 
 var (
-	log = logger.GetLogger()
+	log    = logger.GetLogger()
+	client = &http.Client{}
+	cfg, _ = config.GetAgentConfig()
 )
 
 type AgentStorage struct {
@@ -27,8 +32,8 @@ func NewAgentStorage() *AgentStorage {
 
 func (s *AgentStorage) UpdateMetrics() {
 	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
 
+	runtime.ReadMemStats(&m)
 	s.UpdateGauge("Alloc", Gauge(m.Alloc))
 	s.UpdateGauge("BuckHashSys", Gauge(m.BuckHashSys))
 	s.UpdateGauge("Frees", Gauge(m.Frees))
@@ -59,9 +64,20 @@ func (s *AgentStorage) UpdateMetrics() {
 	s.UpdateGauge("RandomValue", Gauge(rand.Uint64()))
 
 	s.IncrementCounter("PollCount", 1)
+
+	// gopsutil/v3 metrics
+	//v, _ := mem.VirtualMemory()
+	//c, _ := cpu.Percent(0, true)
+	//
+	//s.UpdateGauge("TotalMemory", Gauge(v.Total))
+	//s.UpdateGauge("FreeMemory", Gauge(v.Free))
+	//s.UpdateGauge("CPUutilization1", Gauge(c[0]))
 }
 
 func (s *AgentStorage) SendMetrics(serverAddr string) error {
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
+
 	for name, value := range s.CounterStorage {
 		s.SendMetric(CounterType, name, value, serverAddr)
 	}
@@ -107,6 +123,81 @@ func (s *AgentStorage) SendJSONMetrics(serverAddr string) error {
 	return nil
 }
 
+func (s *AgentStorage) batchSendMetrics(m []Metrics, serverAddr string) error {
+	data, err := json.Marshal(m)
+	if err != nil {
+		log.Error("Error marshaling JSON batch data", zap.Error(err))
+		return err
+	}
+
+	compressedData, err := gzip.CompressData(data)
+	if err != nil {
+		log.Error("Error compressing JSON batch data", zap.Error(err))
+		return err
+	}
+
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/updates/", serverAddr), compressedData)
+	if err != nil {
+		log.Error("Error creating batch request JSON", zap.Error(err))
+		return err
+	}
+
+	req.Header.Set("Content-Type", "text/plain")
+	req.Header.Set("Content-Encoding", "gzip")
+
+	if cfg.UseHashKey {
+		hashed := hash.Make(data, cfg.HashKey)
+		log.Info("Hashed", zap.String("hash", hashed))
+		req.Header.Set("HashSHA256", hashed)
+	}
+
+	resp, err := retrying.Request(client, req)
+	if err != nil {
+		log.Error("Error sending batch request JSON", zap.Error(err))
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Error("Error sending batch request JSON", zap.String("status", resp.Status))
+		return err
+	}
+
+	log.Info("Batch JSON sent successfully")
+	return nil
+}
+
+func (s *AgentStorage) BatchSend(serverAddr string) error {
+	var m []Metrics
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
+
+	for k, v := range s.CounterStorage {
+		delta := int64(v)
+		m = append(m, Metrics{
+			ID:    k,
+			MType: CounterType,
+			Delta: &delta,
+		})
+	}
+
+	for k, v := range s.GaugeStorage {
+		value := float64(v)
+		m = append(m, Metrics{
+			ID:    k,
+			MType: GaugeType,
+			Value: &value,
+		})
+	}
+
+	err := s.batchSendMetrics(m, serverAddr)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (s *AgentStorage) SendJSONMetric(m Metrics, serverAddr string) error {
 	data, err := json.Marshal(m)
 	if err != nil {
@@ -129,8 +220,13 @@ func (s *AgentStorage) SendJSONMetric(m Metrics, serverAddr string) error {
 	req.Header.Set("Content-Type", "text/plain")
 	req.Header.Set("Content-Encoding", "gzip")
 
-	c := &http.Client{}
-	res, err := c.Do(req)
+	if cfg.UseHashKey {
+		hashed := hash.Make(data, cfg.HashKey)
+		log.Info("Hashed", zap.String("hash", hashed))
+		req.Header.Set("HashSHA256", hashed)
+	}
+
+	res, err := retrying.Request(client, req)
 	if err != nil {
 		log.Error("Failed to send metric", zap.Error(err))
 		return err
@@ -164,3 +260,32 @@ func (s *AgentStorage) SendMetric(metricType string, metricName string, metricVa
 	log.Info("Metric sent successfully", zap.String("url", url))
 	return nil
 }
+
+//func (s *AgentStorage) UpdateMetrics(cfg *config.Config, metricsCh chan AgentStorage) error {
+//	pollTicker := time.NewTicker(time.Duration(cfg.Agent.PollInterval) * time.Second)
+//	reportTicker := time.NewTicker(time.Duration(cfg.Agent.ReportInterval) * time.Second)
+//
+//	for {
+//		select {
+//		case <-pollTicker.C:
+//			s.updateMetrics()
+//		case <-reportTicker.C:
+//			metricsCh <- *s
+//			metricsCh <- *s
+//		}
+//	}
+//}
+
+//func CollectMetrics(cfg *config.Config, metricsCh chan MemStorage) {
+//	s := NewAgentStorage()
+//	pollTicker := time.NewTicker(time.Duration(cfg.Agent.PollInterval) * time.Second)
+//	//defer pollTicker.Stop()
+//
+//	for {
+//		select {
+//		case <-pollTicker.C:
+//			s.UpdateMetrics()
+//			metricsCh <- s.MemStorage
+//		}
+//	}
+//}

@@ -74,6 +74,7 @@ func LogHandle(next http.Handler) http.Handler {
 			zap.String("Content-Type", r.Header.Get("Content-Type")),
 			zap.String("Content-Encoding", r.Header.Get("Content-Encoding")),
 			zap.String("Accept-Encoding", r.Header.Get("Accept-Encoding")),
+			zap.String("HashSHA256", r.Header.Get("HashSHA256")),
 		)
 	})
 }

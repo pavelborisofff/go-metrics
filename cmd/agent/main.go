@@ -1,99 +1,94 @@
 package main
 
 import (
-	"flag"
-	"fmt"
-	"go.uber.org/zap"
-	"os"
-	"strconv"
-	"time"
-
+	"github.com/pavelborisofff/go-metrics/internal/config"
 	"github.com/pavelborisofff/go-metrics/internal/logger"
 	"github.com/pavelborisofff/go-metrics/internal/storage"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
+	"go.uber.org/zap"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
-
-const (
-	pollIntervalDef   = 2
-	reportIntervalDef = 10
-	serverAddrDef     = "localhost:8080"
-)
-
-var (
-	pollInterval   time.Duration
-	reportInterval time.Duration
-	serverAddr     string
-	log            = logger.GetLogger()
-)
-
-func ParseFlags() {
-	var (
-		err                error
-		serverAddrFlag     string
-		pollIntervalFlag   int
-		reportIntervalFlag int
-	)
-
-	flag.StringVar(&serverAddrFlag, "a", serverAddrDef, "Server address")
-	flag.IntVar(&pollIntervalFlag, "p", pollIntervalDef, "Poll interval")
-	flag.IntVar(&reportIntervalFlag, "r", reportIntervalDef, "Report interval")
-	flag.Parse()
-
-	serverAddrEnv, exists := os.LookupEnv("ADDRESS")
-	if exists {
-		serverAddrFlag = serverAddrEnv
-	}
-	serverAddr = fmt.Sprintf("http://%s", serverAddrFlag)
-
-	pollIntervalEnv, exists := os.LookupEnv("POLL_INTERVAL")
-	if exists {
-		pollIntervalFlag, err = strconv.Atoi(pollIntervalEnv)
-		if err != nil {
-			log.Fatal("Error parsing POLL_INTERVAL", zap.Error(err))
-		}
-	}
-	pollInterval = time.Duration(pollIntervalFlag) * time.Second
-
-	if pollInterval < time.Duration(1)*time.Second {
-		log.Fatal("Poll interval must be >= 1s")
-	}
-
-	reportIntervalEnv, exists := os.LookupEnv("REPORT_INTERVAL")
-	if exists {
-		reportIntervalFlag, err = strconv.Atoi(reportIntervalEnv)
-		if err != nil {
-			log.Fatal("Error parsing REPORT_INTERVAL", zap.Error(err))
-		}
-	}
-	reportInterval = time.Duration(reportIntervalFlag) * time.Second
-
-	if reportInterval < time.Duration(1)*time.Second {
-		log.Fatal("Report interval must be >= 1s")
-	}
-
-	msg := fmt.Sprintf("\nServer address: %s\nPoll interval: %v\nReport interval: %v", serverAddr, pollInterval, reportInterval)
-	log.Info(msg)
-}
 
 func main() {
+	log := logger.GetLogger()
 	defer log.Sync()
 
 	s := storage.NewAgentStorage()
-	ParseFlags()
+	cfg, err := config.GetAgentConfig()
+	if err != nil {
+		log.Fatal("Error load config", zap.Error(err))
+	}
+	log.Debug("Agent Config", zap.Any("config", cfg))
 
-	pollTicker := time.NewTicker(pollInterval)
-	defer pollTicker.Stop()
-	reportTicker := time.NewTicker(reportInterval)
-	defer reportTicker.Stop()
+	exitSignal := make(chan os.Signal, 1)
+	signal.Notify(exitSignal, syscall.SIGINT, syscall.SIGTERM)
 
-	for {
-		select {
-		case <-pollTicker.C:
-			s.UpdateMetrics()
-		case <-reportTicker.C:
-			err := s.SendJSONMetrics(serverAddr)
-			if err != nil {
-				log.Error("Error sending metrics", zap.Error(err))
+	metricsCh := make(chan storage.AgentStorage)
+	defer close(metricsCh)
+
+	// Create a worker pool
+	for i := 0; i < cfg.Agent.RateLimit; i++ {
+		go func() {
+			for {
+				select {
+				case <-exitSignal:
+					return
+				case <-metricsCh:
+					err = s.SendMetrics(cfg.ServerAddr)
+					if err != nil {
+						log.Error("Error sending metrics", zap.Error(err))
+					}
+
+					err = s.BatchSend(cfg.ServerAddr)
+					if err != nil {
+						log.Error("Error sending batch metrics", zap.Error(err))
+					}
+				}
+			}
+		}()
+	}
+
+	// Collect metrics and send them to the channel
+	go func() {
+		pollTicker := time.NewTicker(time.Duration(cfg.Agent.PollInterval) * time.Second)
+		reportTicker := time.NewTicker(time.Duration(cfg.Agent.ReportInterval) * time.Second)
+		defer pollTicker.Stop()
+		defer reportTicker.Stop()
+
+		for {
+			select {
+			case <-exitSignal:
+				return
+			case <-pollTicker.C:
+				s.UpdateMetrics()
+			case <-reportTicker.C:
+				metricsCh <- *s
 			}
 		}
-	}
+	}()
+
+	// New goroutine for collecting additional metrics
+	go func() {
+		for {
+			select {
+			case <-exitSignal:
+				return
+			default:
+				v, _ := mem.VirtualMemory()
+				c, _ := cpu.Percent(0, false)
+
+				s.UpdateGauge("TotalMemory", storage.Gauge(v.Total))
+				s.UpdateGauge("FreeMemory", storage.Gauge(v.Free))
+				s.UpdateGauge("CPUutilization1", storage.Gauge(c[0]))
+
+				time.Sleep(time.Duration(cfg.Agent.PollInterval) * time.Second)
+			}
+		}
+	}()
+
+	<-exitSignal
 }
