@@ -20,5 +20,6 @@ type Config struct {
 	Agent struct {
 		PollInterval   int `yaml:"poll_interval" env:"POLL_INTERVAL"`
 		ReportInterval int `yaml:"report_interval" env:"REPORT_INTERVAL,"`
+		RateLimit      int `yaml:"rate_limit" env:"RATE_LIMIT" `
 	} `yaml:"agent"`
 }

@@ -6,3 +6,4 @@ server:
 agent:
     poll_interval: 2
     report_interval: 3
+    rate_limit: 1

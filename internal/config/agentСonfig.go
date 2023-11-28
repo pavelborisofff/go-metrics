@@ -34,6 +34,7 @@ func loadAgentConfig() (*Config, error) {
 	fset.IntVar(&_cfg.Agent.PollInterval, "p", _cfg.Agent.PollInterval, "poll interval")
 	fset.IntVar(&_cfg.Agent.ReportInterval, "r", _cfg.Agent.ReportInterval, "report interval")
 	fset.StringVar(&_cfg.HashKey, "k", _cfg.HashKey, "hash key")
+	fset.IntVar(&_cfg.Agent.RateLimit, "l", _cfg.Agent.RateLimit, "rate limit")
 
 	err := fset.Parse(os.Args[1:])
 	if err != nil {
@@ -64,6 +65,9 @@ func loadAgentConfig() (*Config, error) {
 	}
 	if _cfg.HashKey != "" {
 		_cfg.UseHashKey = true
+	}
+	if _cfg.Agent.RateLimit == 0 {
+		_cfg.Agent.RateLimit = defCfg.Agent.RateLimit
 	}
 
 	_cfg.ServerAddr = fmt.Sprintf("http://%s", _cfg.ServerAddr)

@@ -3,17 +3,15 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/pavelborisofff/go-metrics/internal/config"
+	"github.com/pavelborisofff/go-metrics/internal/gzip"
 	"github.com/pavelborisofff/go-metrics/internal/hash"
+	"github.com/pavelborisofff/go-metrics/internal/logger"
+	"github.com/pavelborisofff/go-metrics/internal/retrying"
+	"go.uber.org/zap"
 	"math/rand"
 	"net/http"
 	"runtime"
-
-	"go.uber.org/zap"
-
-	"github.com/pavelborisofff/go-metrics/internal/config"
-	"github.com/pavelborisofff/go-metrics/internal/gzip"
-	"github.com/pavelborisofff/go-metrics/internal/logger"
-	"github.com/pavelborisofff/go-metrics/internal/retrying"
 )
 
 var (
@@ -34,8 +32,8 @@ func NewAgentStorage() *AgentStorage {
 
 func (s *AgentStorage) UpdateMetrics() {
 	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
 
+	runtime.ReadMemStats(&m)
 	s.UpdateGauge("Alloc", Gauge(m.Alloc))
 	s.UpdateGauge("BuckHashSys", Gauge(m.BuckHashSys))
 	s.UpdateGauge("Frees", Gauge(m.Frees))
@@ -66,9 +64,20 @@ func (s *AgentStorage) UpdateMetrics() {
 	s.UpdateGauge("RandomValue", Gauge(rand.Uint64()))
 
 	s.IncrementCounter("PollCount", 1)
+
+	// gopsutil/v3 metrics
+	//v, _ := mem.VirtualMemory()
+	//c, _ := cpu.Percent(0, true)
+	//
+	//s.UpdateGauge("TotalMemory", Gauge(v.Total))
+	//s.UpdateGauge("FreeMemory", Gauge(v.Free))
+	//s.UpdateGauge("CPUutilization1", Gauge(c[0]))
 }
 
 func (s *AgentStorage) SendMetrics(serverAddr string) error {
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
+
 	for name, value := range s.CounterStorage {
 		s.SendMetric(CounterType, name, value, serverAddr)
 	}
@@ -160,6 +169,8 @@ func (s *AgentStorage) batchSendMetrics(m []Metrics, serverAddr string) error {
 
 func (s *AgentStorage) BatchSend(serverAddr string) error {
 	var m []Metrics
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
 
 	for k, v := range s.CounterStorage {
 		delta := int64(v)
@@ -249,3 +260,32 @@ func (s *AgentStorage) SendMetric(metricType string, metricName string, metricVa
 	log.Info("Metric sent successfully", zap.String("url", url))
 	return nil
 }
+
+//func (s *AgentStorage) UpdateMetrics(cfg *config.Config, metricsCh chan AgentStorage) error {
+//	pollTicker := time.NewTicker(time.Duration(cfg.Agent.PollInterval) * time.Second)
+//	reportTicker := time.NewTicker(time.Duration(cfg.Agent.ReportInterval) * time.Second)
+//
+//	for {
+//		select {
+//		case <-pollTicker.C:
+//			s.updateMetrics()
+//		case <-reportTicker.C:
+//			metricsCh <- *s
+//			metricsCh <- *s
+//		}
+//	}
+//}
+
+//func CollectMetrics(cfg *config.Config, metricsCh chan MemStorage) {
+//	s := NewAgentStorage()
+//	pollTicker := time.NewTicker(time.Duration(cfg.Agent.PollInterval) * time.Second)
+//	//defer pollTicker.Stop()
+//
+//	for {
+//		select {
+//		case <-pollTicker.C:
+//			s.UpdateMetrics()
+//			metricsCh <- s.MemStorage
+//		}
+//	}
+//}
